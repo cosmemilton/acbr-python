@@ -94,7 +94,8 @@ class ContractTests(unittest.TestCase):
             with self.subTest(value_type=type(value).__name__):
                 self.assert_code("DATA_HORA_INVALIDA", {"Ide": {"dEmi": value}}, "TNFe.Ide.dEmi")
         for value in ["2023-02-29", "2024-02-30", "2024-13-01", "0000-01-01", "2024-01-01T24:00:00", "2024-01-01T00:60:00", "2024-01-01T00:00:60"]:
-            self.assert_code("DATA_INVALIDA", {"Ide": {"dEmi": value}}, "TNFe.Ide.dEmi")
+            with self.subTest(invalid_civil_date=value):
+                self.assert_code("DATA_INVALIDA", {"Ide": {"dEmi": value}}, "TNFe.Ide.dEmi")
 
     def test_unknown_fields_and_readonly_are_rejected_without_data_leaks(self):
         secret = "SYNTHETIC_SECRET_DO_NOT_LOG"

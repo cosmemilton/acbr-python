@@ -124,7 +124,12 @@ def _validate(value: Any, node: dict[str, Any], types: dict[str, dict[str, Any]]
             if type(item) is not str or not _DATE.fullmatch(item):
                 _fail("DATA_HORA_INVALIDA", current)
             try:
-                datetime.fromisoformat(item)
+                # Explicit components preserve the wire's civil range on every
+                # Python version, even if an ISO parser normalizes 24:00:00.
+                clock = item[11:].split(".", 1) if len(item) > 10 else ["00:00:00"]
+                datetime(int(item[:4]), int(item[5:7]), int(item[8:10]),
+                         int(clock[0][:2]), int(clock[0][3:5]), int(clock[0][6:8]),
+                         int(clock[1].ljust(6, "0")) if len(clock) == 2 else 0)
             except ValueError:
                 _fail("DATA_INVALIDA", current)
         elif type(item) is not str:
