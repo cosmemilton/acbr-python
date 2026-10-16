@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0",
+  "sourceRevision": 48590,
+  "sourceHash": "6b768e4f45b4092d040f7576d6fb799d8b66b45ae29a0902c37334fb7c5c6816",
+  "contractHash": "e5a497cefe8e0e350a30da5cc04e88b35c38a98535893d52f878890260d1346d",
+  "upstreamCommit": "5ff66828eb70f942608517f1e11719272b2786b8",
+  "reference": "https://github.com/cosmemilton/acbr-node/blob/5ff66828eb70f942608517f1e11719272b2786b8/release/0.2.0/manifest.json",
+  "platforms": {
+    "linux": {
+      "name": "cosmemilton-acbr-node-linux-x64",
+      "url": "https://registry.npmjs.org/cosmemilton-acbr-node-linux-x64/-/cosmemilton-acbr-node-linux-x64-0.2.0.tgz",
+      "bytes": 51633932,
+      "sha256": "d2beccbcf31820ebfc49ce0e246b8fe500f5757df458a0985cd09745ea369c45",
+      "manifestSha256": "17f1f7ae68f2c358f7815130301cc9ea83c0919cc0faf185ceb02e9d93f34f29"
+    },
+    "win32": {
+      "name": "cosmemilton-acbr-node-win32-x64",
+      "url": "https://registry.npmjs.org/cosmemilton-acbr-node-win32-x64/-/cosmemilton-acbr-node-win32-x64-0.2.0.tgz",
+      "bytes": 33715213,
+      "sha256": "60b58b9745af5414af19d8087a86af7a00e7d012b51d8d6a3181003b41d3ce83",
+      "manifestSha256": "a27cc4946629c38e08fe4e2f5967201406914b7722b99dd0eac6f2d300c01689"
+    }
+  }
+}

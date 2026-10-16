@@ -1,0 +1,87 @@
+name: Testes e empacotamento
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline:
+    name: Offline ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+        python: ['3.11', '3.12', '3.13', '3.14']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+          architecture: x64
+      - name: Instalar ferramentas e cliente
+        run: python -m pip install build "setuptools>=77.0.3" -e .
+      - name: Contrato gerado sem divergências
+        run: python tools/generate_models.py --check
+      - name: Testes offline
+        run: python -m unittest discover -s tests -v
+      - name: Construir sdist e wheel
+        run: python -m build
+      - name: Instalar wheel e consultar ajuda fora do checkout
+        shell: python
+        run: |
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+          import tempfile
+          import venv
+
+          wheel = next(Path('dist').glob('*.whl')).resolve()
+          with tempfile.TemporaryDirectory() as directory:
+              target = Path(directory)
+              venv.EnvBuilder(with_pip=True).create(target / 'venv')
+              binary = target / 'venv' / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
+              subprocess.run([str(binary), '-m', 'pip', 'install', '--no-index', str(wheel)], check=True, cwd=target)
+              subprocess.run([str(binary), '-m', 'acbr', 'ajuda', 'Ide.cUF'], check=True, cwd=target)
+              subprocess.run([str(binary), '-m', 'acbr', 'ajuda', 'TProd'], check=True, cwd=target)
+
+  native:
+    name: Runtime offline ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+          architecture: x64
+      - name: Instalar cliente
+        run: python -m pip install .
+      - name: Instalar runtime fixado e executar smoke local
+        shell: python
+        run: |
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+
+          destination = Path(os.environ['RUNNER_TEMP']) / 'acbr-runtime-0.2.0'
+          subprocess.run([sys.executable, '-m', 'acbr', 'runtime', 'install', '--directory', str(destination)], check=True)
+          runtime = destination / 'runtime'
+          subprocess.run([sys.executable, '-m', 'acbr', 'doctor', '--directory', str(runtime)], check=True)
+          environment = dict(os.environ, ACBR_TEST_RUNTIME=str(runtime))
+          subprocess.run([sys.executable, '-m', 'unittest', 'discover', '-s', 'tests', '-p', 'test_native.py', '-v'], check=True, env=environment)

@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "acbr-python"
+version = "0.1.0a1"
+description = "Cliente Python independente de framework para o runtime ACBr NF-e/NFC-e"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "LGPL-2.1-or-later"
+license-files = ["LICENSE", "NOTICE"]
+dependencies = []
+keywords = ["acbr", "nfe", "nfce", "python"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Natural Language :: Portuguese (Brazilian)",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Typing :: Typed",
+]
+
+[project.urls]
+Repository = "https://github.com/cosmemilton/acbr-python"
+Issues = "https://github.com/cosmemilton/acbr-python/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["acbr", "acbr.*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+acbr = ["resources/*.json", "py.typed"]
