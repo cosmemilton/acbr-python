@@ -1,0 +1,32 @@
+ACBr Python 0.1.0a1
+https://github.com/cosmemilton/acbr-python
+Copyright 2026 Cosmemilton e colaboradores.
+
+Este projeto é distribuído sob GNU Lesser General Public License,
+versão 2.1 ou posterior (LGPL-2.1-or-later). Consulte LICENSE.
+
+O contrato de tipos e campos e o protocolo do worker são derivados de
+cosmemilton/acbr-node 0.2.0, também LGPL-2.1-or-later:
+https://github.com/cosmemilton/acbr-node
+O contrato registra a revisão ACBr 48590 e mantém os metadados de origem.
+As fixtures sintéticas de documento e XML assinado foram adaptadas das
+fixtures de teste desse mesmo projeto, incluindo offline-fixture.ts e
+o XML público incluído em offline-fixture.ts. Esses materiais preservam a
+licença e autoria de origem.
+O projeto cosmemilton/acbr-php foi consultado como referência de adaptação:
+https://github.com/cosmemilton/acbr-php
+
+ACBr e seus componentes pertencem aos respectivos autores. As licenças,
+exceções e avisos de componentes ACBr, Free Pascal, OpenSSL, libxml2 e
+demais bibliotecas nativas permanecem aplicáveis aos respectivos arquivos.
+Este aviso não substitui nem amplia as permissões dessas licenças.
+
+O wheel e o sdist Python não incluem executáveis nem bibliotecas nativas.
+A instalação explícita do runtime usa os arquivos originais da distribuição
+cosmemilton-acbr-node 0.2.0, sem reempacotar os binários, e deve preservar
+runtime/licenses e runtime/sources, junto ao inventário e aos demais arquivos.
+As fontes e licenças correspondentes são fornecidas pelo arquivo de origem
+fixado pelo instalador. A redistribuição de uma instalação nativa deve
+preservar esses materiais e cumprir as licenças de cada componente.
+
+Nenhuma afiliação ou certificação oficial pelo Projeto ACBr é declarada.
