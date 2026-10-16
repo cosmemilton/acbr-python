@@ -1,0 +1,4 @@
+* text=auto eol=lf
+# Exact upstream bytes are authenticated before parsing.
+src/acbr/resources/contract.json -text
+LICENSE -text
