@@ -5,7 +5,9 @@ em Free Pascal com ACBr e troca mensagens JSON pelos pipes do processo.
 Independente de Django, Flask ou outro framework, é instalado com pip e
 importa como `acbr`, sem dependências Python de execução.
 
-Versão alpha 0.1.0a4
+Versão alpha 0.1.0a5
+
+[Documentação online](https://miltonjunior.dev.br/acbr-python/)
 
 Sem homologação fiscal.
 
@@ -44,7 +46,7 @@ Ative o ambiente (`.venv\Scripts\Activate.ps1` no PowerShell ou
 `source .venv/bin/activate` no bash). Após a disponibilização desta versão no PyPI:
 
 ```console
-python -m pip install acbr-python==0.1.0a4
+python -m pip install acbr-python==0.1.0a5
 python -m acbr --version
 python -m acbr describe Ide.tpNF
 python -m acbr ajuda TTipoNFe
