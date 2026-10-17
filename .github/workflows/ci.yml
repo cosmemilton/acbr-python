@@ -53,6 +53,12 @@ jobs:
               subprocess.run([str(binary), '-m', 'pip', 'install', '--no-index', str(wheel)], check=True, cwd=target)
               subprocess.run([str(binary), '-m', 'acbr', 'ajuda', 'Ide.cUF'], check=True, cwd=target)
               subprocess.run([str(binary), '-m', 'acbr', 'ajuda', 'TProd'], check=True, cwd=target)
+              subprocess.run([str(binary), '-m', 'acbr', '--version'], check=True, cwd=target)
+              subprocess.run([str(binary), '-m', 'acbr', 'describe', 'Ide.tpNF'], check=True, cwd=target)
+              subprocess.run([str(binary), '-m', 'acbr', 'describe', 'TTipoNFe', '--json'], check=True, cwd=target)
+              subprocess.run([str(binary), '-I', '-c',
+                              "from acbr import describe_type; assert describe_type('TTipoNFe')['values'] == ['tnEntrada', 'tnSaida']"],
+                             check=True, cwd=target)
 
   native:
     name: Runtime offline ${{ matrix.os }}

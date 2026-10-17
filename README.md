@@ -1,18 +1,24 @@
 # ACBr Python
 
-Cliente Python independente de Django, Flask ou outro framework para o worker
-nativo público ACBr NF-e/NFC-e. **Versão alpha 0.1.0a3, sem homologação fiscal.**
-O pacote é instalado com pip e importa como `acbr`; não há dependências Python
-de execução nem necessidade de Node.js ou PHP.
+SDK Python para NF-e/NFC-e que inicia diretamente o executável nativo escrito
+em Free Pascal com ACBr e troca mensagens JSON pelos pipes do processo.
+Independente de Django, Flask ou outro framework, é instalado com pip e
+importa como `acbr`, sem dependências Python de execução.
 
-O SDK reaproveita o worker 0.2.0 e o contrato de `cosmemilton/acbr-node`, sem
+**Versão publicada no PyPI: 0.1.0a3 (alpha). Este checkout: 0.1.0a4.dev0,
+em desenvolvimento e ainda não publicado. Sem homologação fiscal.**
+
+A camada Python reaproveita o contrato de tipos e o motor ACBr, sem
 reimplementar cálculos, assinatura ou regras fiscais. A API pública oferece
 `gerar_xml`, `validar`, `assinar`, `transmitir`, `consultar`, `cancelar`,
 `inutilizar` e a interface experimental `recuperar_xml`. Todas as operações
 que podem acessar a SEFAZ exigem `allow_network=True` explícito por chamada.
 
-O runtime fixado é **0.2.1**: ele preserva os executáveis e o contrato da
-0.2.0 e completa os textos de licença que acompanham a distribuição nativa.
+O runtime fixado é **0.2.1**, versão do pacote que distribui os executáveis,
+bibliotecas, schemas, fontes e licenças. Seus executáveis e contrato são
+idênticos aos da distribuição 0.2.0; a atualização completa os textos de
+licença. A versão da distribuição nativa é independente da versão do SDK
+Python. O protocolo usa versão 1 e contrato ACBr da revisão 48590.
 
 Este repositório contém o SDK público reutilizável. Aplicações consumidoras,
 inclusive uma integração privada, instalam o pacote e fornecem sua própria
@@ -34,17 +40,19 @@ python -m venv .venv
 ```
 
 Ative o ambiente (`.venv\Scripts\Activate.ps1` no PowerShell ou
-`source .venv/bin/activate` no bash). Para instalar pelo PyPI quando a versão
-estiver disponível:
+`source .venv/bin/activate` no bash). Para instalar a versão publicada no PyPI:
 
 ```console
 python -m pip install acbr-python==0.1.0a3
-python -m acbr ajuda Ide.cUF
-python -m acbr ajuda TProd
+python -m acbr ajuda Ide.tpNF
+python -m acbr ajuda TTipoNFe
 ```
 
-Para desenvolvimento ou antes da primeira publicação, instale na cópia
-deste repositório com `python -m pip install .`; os comandos de ajuda são iguais.
+Os dois comandos `ajuda` retornam JSON e já estão disponíveis na 0.1.0a3.
+Para usar este checkout em desenvolvimento, instale a cópia do repositório
+com `python -m pip install .`. A 0.1.0a4.dev0 acrescenta `describe` em texto,
+`describe --json`, `--version` e a API Python `describe_type`; essas novidades
+ainda não estão na versão publicada.
 
 Esses comandos de ajuda são offline e não exigem runtime. Para as operações
 nativas, a instalação é uma etapa explícita, separada de `pip install`:
@@ -54,9 +62,11 @@ python -m acbr runtime install --directory .runtime
 python -m acbr doctor --directory .runtime/runtime
 ```
 
-O instalador escolhe o arquivo original 0.2.1 para o sistema e arquitetura
-atuais. Antes de extrair, verifica tamanho e SHA-256 fixados no pacote; depois
-confere os arquivos do inventário. Não executa scripts de instalação npm.
+O instalador baixa o `.tgz` nativo original 0.2.1 por HTTPS do registry npm,
+usado como armazenamento do artefato. Não é necessário instalar Node.js ou
+npm, e nenhum comando npm é executado. O instalador escolhe o arquivo para
+o sistema e arquitetura atuais. Antes de extrair, verifica tamanho e SHA-256
+fixados no pacote; depois confere os arquivos do inventário.
 Fontes, licenças, schemas, serviços e bibliotecas acompanham o runtime.
 Para uma instalação sem download, obtenha previamente o `.tgz` correspondente
 ao pin e use `--archive caminho/arquivo.tgz` no mesmo comando de instalação.
@@ -94,18 +104,41 @@ documentos privados ou tráfego fiscal.
 
 ## Modelos, campos e tipos
 
-O contrato compartilhado fornece modelos gerados e ajuda de campos/tipos:
+O contrato compartilhado fornece modelos gerados e ajuda de campos/tipos.
+Na versão publicada 0.1.0a3, use `python -m acbr ajuda TARGET` para JSON ou
+`acbr.describe_field()` em Python. No checkout 0.1.0a4.dev0:
 
 ```console
-python -m acbr ajuda 'Det[].Prod.vProd'
-python examples/ajuda.py TProd
-python tools/generate_models.py --check
+python -m acbr --version
+python -m acbr describe Ide.tpNF
+python -m acbr describe TTipoNFe --json
+python -m acbr describe 'Det[].Prod.vProd'
 ```
+
+`describe` exibe texto em português; `--json` retorna o mesmo objeto de
+`describe_field`. `ajuda TARGET` permanece compatível e sempre usa JSON.
+Essas consultas, `--help` e `--version` não executam o motor nem acessam a rede.
+
+```python
+from typing import get_args
+
+from acbr import describe_field
+from acbr.models import TTipoNFe
+
+print(get_args(TTipoNFe))  # ('tnEntrada', 'tnSaida')
+print(describe_field("Ide.tpNF")["declaredDefault"])  # tnSaida
+```
+
+`TTipoNFe` é um alias `Literal`, não uma classe `Enum`. Os nomes e o padrão
+de campo acima vêm do contrato; a ajuda não aplica esse padrão ao documento
+nem atribui significado fiscal adicional aos valores.
 
 Maiúsculas e minúsculas seguem o contrato ACBr. Decimais são strings, como
 `"10.00"`, para evitar a perda de precisão de `float`. Datas seguem o formato
 civil do contrato e campos omitidos não recebem defaults fiscais inventados.
-Consulte a ajuda do tipo antes de construir um documento.
+Consulte a ajuda do tipo antes de construir um documento. Veja o
+[guia de ajuda](docs/ajuda.md) para caminhos, tipos, API estrita e códigos
+de saída.
 
 ## Prazos, cancelamento e encerramento
 

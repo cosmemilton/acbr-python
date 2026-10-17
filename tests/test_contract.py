@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
+import inspect
 import json
 from pathlib import Path
 import subprocess
@@ -12,8 +13,9 @@ import typing
 import unittest
 from unittest.mock import patch
 
+import acbr
 from acbr import contract, models
-from acbr.contract import Documento, describe_field, validate_document
+from acbr.contract import Documento, describe_field, describe_type, validate_document
 from acbr.errors import AcbrError
 
 
@@ -148,6 +150,115 @@ class ContractTests(unittest.TestCase):
                     describe_field(query)
                 self.assertEqual(raised.exception.codigo, code)
                 self.assertIsNone(raised.exception.diagnostico.campo)
+
+    def test_type_help_matches_legacy_help_for_every_exact_contract_type(self):
+        metadata, _ = contract._contract()
+        for node in metadata["ir"]["types"]:
+            with self.subTest(type=node["name"]):
+                help_ = describe_type(node["name"])
+                self.assertEqual(help_, describe_field(node["name"]))
+                self.assertEqual(help_["path"], node["name"])
+                self.assertEqual(help_["kind"], node["kind"])
+                if node["kind"] == "enum":
+                    self.assertEqual(help_["values"], node["values"])
+                elif node["kind"] == "list":
+                    self.assertEqual(help_["itemType"], node["item"])
+                else:
+                    self.assertEqual([member["name"] for member in help_["members"]],
+                                     [prop["name"] for prop in node["properties"]])
+
+    def test_type_help_requires_exact_ir_names_and_does_not_leak_queries(self):
+        class TextSubclass(str):
+            pass
+
+        secret = "SYNTHETIC_SECRET_TYPE_DO_NOT_LOG"
+        invalid = [None, True, 1, b"TNFe", [], {}, TextSubclass("TNFe"), "", " TNFe", "TNFe ",
+                   "tnfe", "TProdOutput", "Ide", "cIndOp", "Ide.cUF", "TNFe.Det[].Prod",
+                   "TProd[]", "Tcompra", "Integer", "Currency", secret, "T" * 513]
+        for query in invalid:
+            with self.subTest(query_type=type(query).__name__):
+                with self.assertRaises(AcbrError) as raised:
+                    describe_type(query)
+                error = raised.exception
+                self.assertEqual(error.codigo, "TIPO_INVALIDO")
+                self.assertEqual(error.diagnostico.etapa, "documento")
+                self.assertIsNone(error.diagnostico.campo)
+                self.assertFalse(error.resultado_desconhecido)
+                self.assertNotIn(secret, str(error))
+                self.assertNotIn(secret, repr(error))
+                self.assertNotIn(secret, json.dumps(error.diagnostico.to_dict()))
+        self.assertEqual(describe_type("TCompra")["pascalType"], "TCompra")
+        self.assertEqual(describe_field("compra")["pascalType"], "Tcompra")
+        self.assertEqual(describe_field("compra")["typeReference"], "TCompra")
+
+    def test_type_help_preserves_literal_values_and_field_context(self):
+        help_ = describe_type("TTipoNFe")
+        self.assertEqual(help_["values"], ["tnEntrada", "tnSaida"])
+        self.assertEqual(typing.get_args(models.TTipoNFe), ("tnEntrada", "tnSaida"))
+        self.assertNotIn("declaredDefault", help_)
+        self.assertEqual(describe_field("Ide.tpNF")["declaredDefault"], "tnSaida")
+        self.assertTrue(next(member for member in describe_type("TNFe")["members"]
+                             if member["name"] == "procNFe")["readonly"])
+
+    def test_type_and_field_help_return_detached_metadata(self):
+        enum = describe_type("TTipoNFe")
+        enum["values"].append("SYNTHETIC_INVALID_ENUM")
+        obj = describe_type("TNFe")
+        obj["members"][0]["name"] = "changed"
+        obj["members"].clear()
+        field_help = describe_field("Ide.cUF")
+        field_help["constraints"]["min"] = 0
+        self.assertEqual(describe_type("TTipoNFe")["values"], ["tnEntrada", "tnSaida"])
+        self.assertEqual(describe_field("TTipoNFe")["values"], ["tnEntrada", "tnSaida"])
+        self.assertNotEqual(describe_type("TNFe")["members"], [])
+        self.assertNotEqual(describe_type("TNFe")["members"][0]["name"], "changed")
+        self.assertEqual(describe_field("Ide.cUF")["constraints"]["min"], -(2**31))
+
+    def test_help_is_public_and_reports_code_version_without_package_metadata(self):
+        self.assertIs(acbr.describe_type, describe_type)
+        self.assertIn("describe_type", acbr.__all__)
+        self.assertEqual(describe_type("TNFe")["sdkVersion"], acbr.__version__)
+        self.assertEqual(describe_field("Ide.cUF")["sdkVersion"], acbr.__version__)
+        repository = Path(__file__).resolve().parents[1]
+        # Import after hiding metadata to exercise a source checkout rather than
+        # trusting any older installed distribution in the same environment.
+        probe = """
+import importlib.metadata
+import json
+import sys
+sys.path.insert(0, sys.argv[1])
+def unavailable(name):
+    raise importlib.metadata.PackageNotFoundError(name)
+importlib.metadata.version = unavailable
+import acbr
+print(json.dumps([acbr.__version__, acbr.describe_type('TNFe')['sdkVersion'],
+                  acbr.describe_field('Ide.cUF')['sdkVersion']]))
+"""
+        result = subprocess.run([sys.executable, "-B", "-c", probe, str(repository / "src")],
+                                capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(json.loads(result.stdout), [acbr.__version__] * 3)
+
+    def test_generated_typeddict_docstrings_describe_structural_input_and_output(self):
+        metadata, _ = contract._contract()
+        for node in metadata["ir"]["types"]:
+            if node["kind"] != "object":
+                continue
+            for suffix, mode in [("", "Entrada"), ("Output", "Saída")]:
+                with self.subTest(type=node["name"] + suffix):
+                    generated = getattr(models, node["name"] + suffix)
+                    doc = inspect.getdoc(generated)
+                    self.assertIsInstance(generated.__doc__, str)
+                    self.assertTrue(doc.startswith(mode))
+                    self.assertIn(node["name"], doc)
+                    self.assertIn(node["unit"], doc)
+                    self.assertIn("total=False", doc)
+                    self.assertIn("opcionais estruturalmente", doc)
+                    self.assertIn("TypedDict não valida valores em execução", doc)
+                    self.assertIn("estrutura de uma entrada TNFe", doc)
+                    self.assertIn("Schema e regras fiscais dependem do runtime ACBr", doc)
+                    self.assertIn(f"acbr.describe_type({node['name']!r})", doc)
+                    self.assertFalse(generated.__total__)
 
     def test_generated_types_cover_all_contract_fields_and_enum_values(self):
         metadata, _ = contract._contract()

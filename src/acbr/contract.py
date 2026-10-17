@@ -12,10 +12,10 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import lru_cache
-from importlib.metadata import PackageNotFoundError, version
 from importlib.resources import files
 from typing import Any, NoReturn
 
+from ._version import __version__
 from .errors import AcbrError
 from .models import TNFe
 
@@ -28,6 +28,7 @@ _DECIMAL = re.compile(r"-?[0-9]+(?:\.[0-9]+)?", re.ASCII)
 _DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}(?:T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,3})?)?", re.ASCII)
 _PATH = re.compile(r"[A-Za-z_]\w*(?:\[[0-9]*\])?(?:\.[A-Za-z_]\w*(?:\[[0-9]*\])?)*", re.ASCII)
 _SEGMENT = re.compile(r"([A-Za-z_]\w*)(\[[0-9]*\])?", re.ASCII)
+_TYPE_NAME = re.compile(r"[A-Za-z_]\w*", re.ASCII)
 _MESSAGES = {
     "OBJETO_ESPERADO": "Informe um objeto JSON entre chaves.",
     "ARRAY_ESPERADO": "Informe uma lista JSON entre colchetes.",
@@ -47,6 +48,7 @@ _MESSAGES = {
     "COLECAO_REQUER_INDICE": "Use [] ou um índice para consultar um elemento da coleção.",
     "CAMPO_AMBIGUO": "O nome aparece em vários caminhos; informe o caminho completo.",
     "CAMINHO_COMPLETO_NECESSARIO": "Informe o caminho completo do campo.",
+    "TIPO_INVALIDO": "Informe o nome exato de um tipo do contrato, como TProd ou TTipoNFe.",
     "CONTRATO_INVALIDO": "O contrato empacotado está ausente, inválido ou incompatível.",
 }
 
@@ -139,10 +141,15 @@ def _validate(value: Any, node: dict[str, Any], types: dict[str, dict[str, Any]]
 
 
 def validate_document(data: TNFe | dict[str, Any]) -> dict[str, Any]:
-    """Validate TNFe input and return a detached JSON-compatible snapshot.
+    """Valide a estrutura de TNFe e retorne uma cópia compatível com JSON.
 
-    All fields are optional structurally. Native schema and fiscal validation
-    remain the responsibility of the ACBr runtime. No defaults are inserted.
+    Campos são opcionais estruturalmente; defaults não são inseridos. Os nomes
+    distinguem maiúsculas de minúsculas. Enums usam as strings do contrato;
+    decimais e datas/horários civis ISO também usam str, sem conversão automática.
+    Campos desconhecidos, somente leitura ou de tipo incorreto geram AcbrError.
+
+    Esta função não executa o worker. Validação de schema e regras fiscais
+    dependem do runtime ACBr.
     """
     metadata, types = _contract()
     root = metadata["ir"]["root"]
@@ -151,7 +158,11 @@ def validate_document(data: TNFe | dict[str, Any]) -> dict[str, Any]:
 
 @dataclass(frozen=True, slots=True, init=False)
 class Documento:
-    """Immutable TNFe input snapshot; repr never contains submitted content."""
+    """Snapshot imutável de entrada TNFe, validado apenas estruturalmente.
+
+    Documento(data) copia os valores aninhados sem inserir defaults. Use
+    to_wire() para obter uma nova cópia JSON. O repr não revela o conteúdo.
+    """
 
     _snapshot: bytes = field(repr=False)
 
@@ -160,7 +171,7 @@ class Documento:
         object.__setattr__(self, "_snapshot", json.dumps(validated, ensure_ascii=True, separators=(",", ":")).encode("ascii"))
 
     def to_wire(self) -> dict[str, Any]:
-        """Return a fresh mutable copy; changing it does not change this document."""
+        """Retorne uma cópia mutável; alterá-la não modifica o Documento."""
         return json.loads(self._snapshot)
 
 
@@ -203,22 +214,51 @@ def _description(node: dict[str, Any], path: str, readonly: bool) -> dict[str, A
     return result
 
 
-def describe_field(path: str) -> dict[str, Any]:
-    """Describe an exact type or case-sensitive TNFe path, including enums.
+def _provenance(metadata: dict[str, Any]) -> dict[str, Any]:
+    return {
+        **{key: metadata[key] for key in ("formatVersion", "sourceRevision", "sourceHash", "contractHash")},
+        "root": metadata["ir"]["root"],
+        "sdkVersion": __version__,
+    }
 
-    Examples: ``TProd``, ``Ide.cUF``, ``TNFe.Det[].Prod.vProd``. Numeric
-    collection indices are accepted and normalized to ``[]`` in the result.
+
+def describe_type(name: str) -> dict[str, Any]:
+    """Descreva um nome exato de tipo do contrato, como TProd ou TTipoNFe.
+
+    Aceita tipos de objeto, lista e enum do contrato fixado. Não aceita caminhos
+    de campos, aliases Python Output, espaços ou nomes com outra capitalização.
+    Uma consulta inválida gera AcbrError com código TIPO_INVALIDO.
+
+    Retorna um dict independente com procedência, membros ou valores textuais
+    de enum na ordem do contrato. inputType descreve o tipo JSON de transporte.
+    Para defaults e limites de um campo específico, use describe_field(). Esta
+    ajuda não executa o runtime nem determina obrigatoriedade fiscal.
+    """
+    if type(name) is not str or len(name) > 512 or not _TYPE_NAME.fullmatch(name):
+        _fail("TIPO_INVALIDO")
+    metadata, types = _contract()
+    if name not in types:
+        _fail("TIPO_INVALIDO")
+    return _provenance(metadata) | _description(types[name], name, False)
+
+
+def describe_field(path: str) -> dict[str, Any]:
+    """Descreva um campo TNFe ou um nome exato de tipo, incluindo enums.
+
+    Exemplos: TProd, Ide.cUF e TNFe.Det[].Prod.vProd. Nomes distinguem
+    maiúsculas de minúsculas. Índices numéricos são normalizados para [] no
+    resultado; um nome curto de campo só é aceito quando não for ambíguo.
+
+    Retorna um dict independente com procedência, tipo JSON (inputType),
+    readonly e metadados disponíveis de enum, default declarado e limites.
+    Os metadados não inserem defaults nem determinam obrigatoriedade fiscal.
+    Não executa o runtime. Consultas inválidas geram AcbrError.
     """
     if type(path) is not str or len(path) > 512 or not _PATH.fullmatch(path):
         _fail("CAMINHO_INVALIDO")
     metadata, types = _contract()
     root = metadata["ir"]["root"]
-    base = {key: metadata[key] for key in ("formatVersion", "sourceRevision", "sourceHash", "contractHash")}
-    base["root"] = root
-    try:
-        base["sdkVersion"] = version("acbr-python")
-    except PackageNotFoundError:
-        base["sdkVersion"] = "0.1.0a2"
+    base = _provenance(metadata)
     if path in types:
         return base | _description(types[path], path, False)
     relative = path[len(root) + 1:] if path.startswith(root + ".") else path

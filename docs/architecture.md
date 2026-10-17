@@ -38,6 +38,30 @@ privadas. Configuração de uma aplicação, persistência, filas e credenciais
 pertencem à aplicação consumidora. O SDK não depende de um projeto privado
 para fornecer sua API nem transporta dados ou segredos de um consumidor.
 
+## Versões e ajuda offline
+
+A versão publicada no PyPI é 0.1.0a3. Este checkout 0.1.0a4.dev0 ainda não
+foi publicado e acrescenta ajuda em texto com `describe TARGET`, saída JSON
+com `describe TARGET --json`, `--version` e a função `describe_type`.
+`ajuda TARGET` mantém o JSON da interface publicada, baseado em
+`describe_field`. O campo `sdkVersion` reflete a versão do código consultado.
+Essa mudança não altera o pin nativo 0.2.1 nem o contrato ACBr autenticado.
+
+A ajuda lê o contrato JSON incluído no pacote; não instala ou verifica o
+runtime, não inicia um processo nativo e não acessa rede. O renderizador de
+texto usa apenas os metadados disponíveis. A API `describe_field` aceita
+caminhos de campos e nomes de tipos; `describe_type` exige um nome exato de
+tipo do contrato. Os modelos gerados representam enums por aliases
+`typing.Literal`, consultáveis com `typing.get_args`, e não por classes
+`Enum`. Defaults pertencem aos campos que os declaram e não são aplicados
+pela ajuda ou pela validação estrutural Python.
+
+O comando novo em texto envia erros de consulta a stderr; `--json` e
+`ajuda` preservam o diagnóstico JSON em stdout. Ambos usam saída 1 para
+falhas de consulta; erros de sintaxe continuam com saída 2 do argparse.
+`--help` e `--version` encerram sem consultar o motor. Veja
+[ajuda.md](ajuda.md) para os comandos disponíveis em cada versão.
+
 ## Escopo verificável
 
 | Operação | Escopo desta versão | Evidência prevista |
@@ -109,6 +133,9 @@ e o contrato são idênticos aos da 0.2.0; a nova distribuição completa textos
 de licença e seus inventários. O instalador
 deve conferir o arquivo original e seu inventário, rejeitar entradas perigosas
 de arquivo e preservar bibliotecas, schemas, serviços, fontes e licenças.
+O `.tgz` original é obtido por HTTPS do registry npm, utilizado como
+armazenamento de artefato. A instalação não requer Node.js ou npm e não
+executa comandos npm; o Python inicia diretamente o executável Pascal.
 O diretório instalado deve ter permissões adequadas; hashes detectam
 divergências, mas não tornam confiável um diretório modificável por terceiros.
 

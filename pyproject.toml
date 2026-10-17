@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "acbr-python"
-version = "0.1.0a3"
+version = "0.1.0a4.dev0"
 description = "Cliente Python independente de framework para o runtime ACBr NF-e/NFC-e"
 readme = "README.md"
 requires-python = ">=3.11"
