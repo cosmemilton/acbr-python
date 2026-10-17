@@ -28,6 +28,7 @@ class RuntimeTests(unittest.TestCase):
         self.root = Path(self.temporary.name)
         self.platform = "win32" if sys.platform == "win32" else "linux"
         self.release = copy.deepcopy(rt._release())
+        self.package_version = self.release["version"]
         self.manifest = {
             "formatVersion": 1, "sourceRevision": self.release["sourceRevision"],
             "contractHash": self.release["contractHash"], "platform": self.platform,
@@ -56,7 +57,7 @@ class RuntimeTests(unittest.TestCase):
 
     def _write_archive(self, extra=()):
         manifest = self._manifest_bytes()
-        package = {"name": self.release["platforms"][self.platform]["name"], "version": self.release["version"], "license": "LGPL-2.1-or-later"}
+        package = {"name": self.release["platforms"][self.platform]["name"], "version": self.package_version, "license": "LGPL-2.1-or-later"}
         entries = {"package.json": json.dumps(package).encode(), "LICENSE": b"SYNTHETIC LICENSE", "NOTICE": b"SYNTHETIC NOTICE", "README.md": b"SYNTHETIC README", "runtime/manifest.json": manifest}
         entries.update({"runtime/" + name: data for name, data in self.data.items()})
         with tarfile.open(self.archive, "w:gz", format=tarfile.USTAR_FORMAT) as handle:
@@ -177,6 +178,23 @@ class RuntimeTests(unittest.TestCase):
         self.manifest["executable"] = "not-in-inventory"
         self._write_archive()
         self.assertCode("RUNTIME_INVALIDO", self._install)
+
+    def test_package_distribution_version_must_match_pin(self):
+        for version in ("untrusted-version", None, 1):
+            with self.subTest(version=version):
+                self.package_version = version
+                self._write_archive()
+                self.assertCode("RUNTIME_INVALIDO", self._install)
+
+    def test_required_common_license_material_cannot_be_removed_from_inventory(self):
+        for name in ("licenses/common/Apache-2.0.txt", "licenses/common/INVENTORY.json"):
+            with self.subTest(name=name):
+                data = self.data.pop(name)
+                digest = self.manifest["files"].pop(name)
+                self._write_archive()
+                self.assertCode("RUNTIME_INCOMPLETO", self._install)
+                self.data[name] = data
+                self.manifest["files"][name] = digest
 
     def test_build_provenance_must_match(self):
         self.data["sources/build.json"] = b"{}"

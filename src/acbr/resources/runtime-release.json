@@ -1,24 +1,24 @@
 {
-  "version": "0.2.0",
   "sourceRevision": 48590,
   "sourceHash": "6b768e4f45b4092d040f7576d6fb799d8b66b45ae29a0902c37334fb7c5c6816",
   "contractHash": "e5a497cefe8e0e350a30da5cc04e88b35c38a98535893d52f878890260d1346d",
-  "upstreamCommit": "5ff66828eb70f942608517f1e11719272b2786b8",
-  "reference": "https://github.com/cosmemilton/acbr-node/blob/5ff66828eb70f942608517f1e11719272b2786b8/release/0.2.0/manifest.json",
+  "version": "0.2.1",
+  "upstreamCommit": "7330817e4628b5fb7b49d4c638cdc23da0228ce8",
+  "reference": "https://github.com/cosmemilton/acbr-node/blob/7330817e4628b5fb7b49d4c638cdc23da0228ce8/release/0.2.1/manifest.json",
   "platforms": {
     "linux": {
       "name": "cosmemilton-acbr-node-linux-x64",
-      "url": "https://registry.npmjs.org/cosmemilton-acbr-node-linux-x64/-/cosmemilton-acbr-node-linux-x64-0.2.0.tgz",
-      "bytes": 51633932,
-      "sha256": "d2beccbcf31820ebfc49ce0e246b8fe500f5757df458a0985cd09745ea369c45",
-      "manifestSha256": "17f1f7ae68f2c358f7815130301cc9ea83c0919cc0faf185ceb02e9d93f34f29"
+      "url": "https://registry.npmjs.org/cosmemilton-acbr-node-linux-x64/-/cosmemilton-acbr-node-linux-x64-0.2.1.tgz",
+      "bytes": 51682585,
+      "sha256": "029e23b5fc05e0886a9e988300ef46811db0705f687109d114d34e87500d1b5f",
+      "manifestSha256": "d7e0bb150982daa3670d1ee8d6a1e0e1e422b2e213bc03c6ea8828ffea659414"
     },
     "win32": {
       "name": "cosmemilton-acbr-node-win32-x64",
-      "url": "https://registry.npmjs.org/cosmemilton-acbr-node-win32-x64/-/cosmemilton-acbr-node-win32-x64-0.2.0.tgz",
-      "bytes": 33715213,
-      "sha256": "60b58b9745af5414af19d8087a86af7a00e7d012b51d8d6a3181003b41d3ce83",
-      "manifestSha256": "a27cc4946629c38e08fe4e2f5967201406914b7722b99dd0eac6f2d300c01689"
+      "url": "https://registry.npmjs.org/cosmemilton-acbr-node-win32-x64/-/cosmemilton-acbr-node-win32-x64-0.2.1.tgz",
+      "bytes": 33777463,
+      "sha256": "3a4f3ab038c8e9a705ac5a74f8d9c237c96aea1922b54fb2c5f844a8af445cc3",
+      "manifestSha256": "0db06cb335587a8bb862a647073fd4c0c0e5b47fe0004c9cdf960d88daf74c40"
     }
   }
 }

@@ -104,7 +104,9 @@ potencialmente incerto; o SDK não repete a operação.
 
 ## Runtime, integridade e distribuição
 
-O pin do runtime é 0.2.0, com o contrato ACBr da revisão 48590. O instalador
+O pin do runtime é 0.2.1, com o contrato ACBr da revisão 48590. Os executáveis
+e o contrato são idênticos aos da 0.2.0; a nova distribuição completa textos
+de licença e seus inventários. O instalador
 deve conferir o arquivo original e seu inventário, rejeitar entradas perigosas
 de arquivo e preservar bibliotecas, schemas, serviços, fontes e licenças.
 O diretório instalado deve ter permissões adequadas; hashes detectam
@@ -116,6 +118,10 @@ O projeto de referência declara LGPL-2.1-or-later; componentes nativos mantêm
 suas licenças e exceções, que devem acompanhar qualquer redistribuição.
 Alterar ou redistribuir um runtime exige rever as obrigações dos componentes,
 inclusive a disponibilidade das fontes correspondentes. Consulte `NOTICE`.
+Nos tarballs 0.2.1 publicados foram conferidos os hashes de todos os arquivos,
+os avisos e textos canônicos, o inventário de licenças e suas referências.
+Essa evidência resolve a ausência específica do texto Apache-2.0 no Linux
+0.2.0; não constitui certificação jurídica integral.
 
 ## Limites e próximos passos
 
@@ -134,7 +140,10 @@ resultados indeterminados e reconciliação; não há repetição automática.
 A CI executa testes offline e empacotamento com permissões de leitura. O
 smoke nativo usa instalação explícita em Windows e Ubuntu. Push em `main` e
 atualizações de PR acionam a CI, sem duplicar a execução pelo push da branch
-do mesmo PR. Nenhum workflow publica no PyPI ou faz merge automaticamente.
+do mesmo PR. A publicação no PyPI exige disparo manual de `publish-pypi.yml`
+em uma tag compatível com a versão, CI aprovada do SHA efetivo e aprovação
+do revisor no environment `pypi`. A CI comum não publica pacotes e nenhum
+workflow faz merge automaticamente.
 
 ## Fontes de projeto
 

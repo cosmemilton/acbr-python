@@ -1,4 +1,4 @@
-"""Instalação explícita e verificação offline do worker ACBr Node 0.2.0.
+"""Instalação explícita e verificação offline do runtime ACBr Node 0.2.1.
 
 O wheel contém somente o SDK e os hashes; importar este módulo nunca baixa ou
 executa programas. A instalação preserva todo o pacote nativo, fontes e licenças.
@@ -47,6 +47,7 @@ _REQUIRED = frozenset({
     "licenses/Lazarus-COPYING.modifiedLGPL.txt", "licenses/toolchain-notices.json",
     "sources/acbr-source.tar.gz", "sources/build.json",
     "sources/native-dependencies.json", "ACBrNFeServicos.ini", "openssl.cnf",
+    "licenses/common/Apache-2.0.txt", "licenses/common/INVENTORY.json",
 })
 
 
