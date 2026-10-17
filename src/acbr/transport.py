@@ -130,6 +130,7 @@ class ProcessTransport:
             raise AcbrError("REQUISICAO_EXCESSIVA", "Requisição excede o limite de bytes.")
         process = None
         sending = False
+        last_valid_frame = None
         original_xml = None
         if request["comando"] == "transmitir":
             try:
@@ -195,7 +196,8 @@ class ProcessTransport:
             # antes de o processo falhar. Nunca repetir uma mutação após spawn.
             uncertain = request["comando"] in MUTATING and process is not None
             return AcbrError(code, message, uncertain, etapa="runtime",
-                             xml_original=original_xml if uncertain else None)
+                             xml_original=original_xml if uncertain else None,
+                             retorno_original=last_valid_frame)
 
         def check_stopped():
             if self._closed.is_set():
@@ -280,6 +282,7 @@ class ProcessTransport:
                             if result is not None:
                                 raise ValueError()
                             result = self._result(frame, request, sending)
+                            last_valid_frame = frame
                         except (ValueError, TypeError, UnicodeError, KeyError, RecursionError, binascii.Error):
                             raise fail("RESPOSTA_INVALIDA", "Resposta inválida do motor.") from None
                 if process.poll() is not None and done == {"stdout", "stderr", "written"} and events.empty():
@@ -403,4 +406,4 @@ class ProcessTransport:
             state if success and cmd not in {"gerarXml", "validar"} else "ETAPA_LOCAL_CONCLUIDA" if success else "OPERACAO_FISCAL_FALHOU",
             PHASES[cmd], "Etapa concluída." if success else "O motor não concluiu a etapa.", action,
             status, c_stat=code)
-        return ResultadoFiscal(frame["sucesso"], frame["estado"], diagnostic, frame.get("codigo"), frame.get("cStat"), frame.get("chave"), frame.get("protocolo"), frame.get("recibo"), xml, frame.get("xMotivo"), sending)
+        return ResultadoFiscal(frame["sucesso"], frame["estado"], diagnostic, frame.get("codigo"), frame.get("cStat"), frame.get("chave"), frame.get("protocolo"), frame.get("recibo"), xml, frame.get("xMotivo"), sending, _retorno_original=frame)

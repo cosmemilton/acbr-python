@@ -115,6 +115,72 @@ class TransportTests(unittest.TestCase):
         self.assertEqual(result.codigo, "SYNTHETIC-PASSWORD-SENTINEL")
         self.assertNotIn("SYNTHETIC-PASSWORD", repr(result) + json.dumps(result.to_dict()))
 
+    def test_original_worker_frame_keeps_extra_fields_out_of_safe_logs(self):
+        result = self.run_worker("original", request=self.request("consultar"))
+        original = result.retorno_original
+        self.assertEqual("acbr_worker_jsonl", result.origem_retorno_original)
+        self.assertEqual("SYNTHETIC-PRIVATE-WORKER-RETURN", original["xMotivo"])
+        self.assertEqual(result.c_stat, original["cStat"])
+        self.assertEqual(result.protocolo, original["protocolo"])
+        self.assertEqual(result.xml_base64, original["xmlBase64"])
+        self.assertEqual("SYNTHETIC-PRIVATE-WORKER-RETURN", original["extraACBr"]["itens"][2]["codigoExtra"])
+        original["extraACBr"]["itens"].clear()
+        self.assertEqual(3, len(result.retorno_original["extraACBr"]["itens"]))
+        self.assertNotIn("PRIVATE", repr(result) + json.dumps(result.to_dict()))
+        self.assertNotIn("soap", result.retorno_original)
+
+    def test_native_error_frame_is_preserved_without_fabricating_missing_fields(self):
+        result = self.run_worker("original_error", request=self.request("transmitir"))
+        self.assertFalse(result.sucesso)
+        self.assertEqual("ERRO", result.estado)
+        self.assertEqual("SYNTHETIC-PRIVATE-CODE", result.retorno_original["codigo"])
+        self.assertEqual("SYNTHETIC-PRIVATE-WORKER-RETURN", result.retorno_original["xMotivo"])
+        for absent in ("cStat", "protocolo", "xmlBase64", "soap"):
+            self.assertNotIn(absent, result.retorno_original)
+        self.assertIsNone(result.c_stat)
+        self.assertIsNone(result.xml)
+        self.assertNotIn("PRIVATE", repr(result) + json.dumps(result.to_dict()))
+
+    def test_transport_error_after_valid_terminal_preserves_only_valid_frame(self):
+        for mode, code in (("original_nonzero", "FALHA_MOTOR"), ("original_invalid_after", "RESPOSTA_INVALIDA"),
+                           ("original_timeout", "TIMEOUT_MOTOR")):
+            with self.subTest(mode=mode), self.assertRaises(AcbrError) as caught:
+                self.run_worker(mode, request=self.request("transmitir"), transport=ProcessTransport(timeout=.5))
+            error = caught.exception
+            self.assertEqual(code, error.codigo)
+            self.assertTrue(error.resultado_desconhecido)
+            self.assertEqual("AUTORIZADO", error.retorno_original["estado"])
+            self.assertEqual("SYNTHETIC-PRIVATE-WORKER-RETURN", error.retorno_original["xMotivo"])
+            self.assertEqual("acbr_worker_jsonl", error.origem_retorno_original)
+            self.assertNotIn("PRIVATE", repr(error) + str(error) + json.dumps(error.diagnostico.to_dict()))
+            self.assertEqual(base64.b64decode(self.request("transmitir")["xmlBase64"]).decode(), error.xml_original)
+
+    def test_invalid_or_absent_frames_are_not_exposed_as_original(self):
+        for command, mode in (("gerarXml", "wrong_id"), ("gerarXml", "empty"), ("gerarXml", "partial"),
+                              ("transmitir", "no_marker"), ("transmitir", "bad_state_code")):
+            with self.subTest(command=command, mode=mode), self.assertRaises(AcbrError) as caught:
+                self.run_worker(mode, request=self.request(command))
+            self.assertIsNone(caught.exception.retorno_original)
+            self.assertIsNone(caught.exception.origem_retorno_original)
+
+    def test_unconfirmed_cleanup_keeps_previously_validated_terminal_frame(self):
+        request = self.request("transmitir")
+        final = {key: request[key] for key in ("id", "versao", "sourceRevision", "contractHash")}
+        final.update(sucesso=True, estado="AUTORIZADO", envioIniciado=True, cStat=100,
+                     chave="1" * 44, protocolo="1" * 15, xmlBase64=request["xmlBase64"], extra={"private": "SYNTHETIC-PRIVATE"})
+        marker = {"id": request["id"], "tipo": "envioIniciado"}
+        process = MockProcess(refuse_kill=True, stdout=[(json.dumps(marker) + "\n").encode(), (json.dumps(final) + "\n").encode()])
+        try:
+            with patch("acbr.transport.subprocess.Popen", return_value=process):
+                with self.assertRaises(AcbrError) as caught:
+                    self.run_worker("ok", request=request, transport=ProcessTransport(timeout=.15))
+            self.assertTrue(caught.exception.resultado_desconhecido)
+            self.assertFalse(caught.exception.limpeza_confirmada)
+            self.assertEqual(final, caught.exception.retorno_original)
+            self.assertNotIn("PRIVATE", repr(caught.exception) + str(caught.exception))
+        finally:
+            process.stopped.set()
+
     def test_stdout_flood_is_bounded(self):
         with self.assertRaises(AcbrError) as caught:
             self.run_worker("flood", transport=ProcessTransport(timeout=5, max_bytes=1024))
@@ -440,6 +506,37 @@ class TransportTests(unittest.TestCase):
             self.run_worker("ok", request=self.request("cartaCorrecao"))
         spawn.assert_not_called()
         self.assertEqual("OPERACAO_NAO_SUPORTADA", caught.exception.codigo)
+
+    def test_cancellation_proc_evento_preserves_worker_xml_and_original_frame(self):
+        """Fixture anônima estrutural; AA== não constitui assinatura/certificado válido."""
+        import xml.etree.ElementTree as ET
+
+        raw = (FIXTURE.parent / "fixtures" / "cancelamento-procEvento-anon.xml").read_bytes()
+        ns = "{http://www.portalfiscal.inf.br/nfe}"
+        root = ET.fromstring(raw)
+        self.assertEqual(ns + "procEventoNFe", root.tag)
+        self.assertIsNotNone(root.find(ns + "evento/" + ns + "infEvento"))
+        returned = root.find(ns + "retEvento/" + ns + "infEvento")
+        self.assertIsNotNone(returned)
+        request = {**self.request("cancelar"), "chave": returned.findtext(ns + "chNFe")}
+        frame = {key: request[key] for key in ("id", "versao", "sourceRevision", "contractHash")}
+        frame.update(sucesso=True, estado="CANCELADO", envioIniciado=True,
+                     cStat=int(returned.findtext(ns + "cStat")), xMotivo=returned.findtext(ns + "xMotivo"),
+                     chave=request["chave"], protocolo=returned.findtext(ns + "nProt"),
+                     xmlBase64=base64.b64encode(raw).decode("ascii"))
+
+        with patch("acbr.transport.subprocess.Popen") as spawn:
+            result = ProcessTransport._result(frame, request, sending=True)
+        spawn.assert_not_called()
+        self.assertEqual((True, "CANCELADO", 135, True),
+                         (result.sucesso, result.estado, result.c_stat, result.envio_iniciado))
+        self.assertEqual("Evento sintetico registrado e vinculado a NF-e", result.x_motivo)
+        self.assertEqual("0" * 15, result.protocolo)
+        self.assertEqual(raw, base64.b64decode(result.xml_base64, validate=True))
+        self.assertEqual(raw, result.xml.encode("utf-8"))
+        self.assertEqual(frame, result.retorno_original)
+        self.assertEqual("acbr_worker_jsonl", result.origem_retorno_original)
+        self.assertNotIn("<procEventoNFe", repr(result) + json.dumps(result.to_dict()))
 
     def test_request_and_limits_validation(self):
         for timeout in (True, 0, 121, float("nan"), float("inf")):
