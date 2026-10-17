@@ -218,7 +218,7 @@ def describe_field(path: str) -> dict[str, Any]:
     try:
         base["sdkVersion"] = version("acbr-python")
     except PackageNotFoundError:
-        base["sdkVersion"] = "0.1.0a1"
+        base["sdkVersion"] = "0.1.0a2"
     if path in types:
         return base | _description(types[path], path, False)
     relative = path[len(root) + 1:] if path.startswith(root + ".") else path

@@ -2,6 +2,7 @@ name: Testes e empacotamento
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -70,7 +71,7 @@ jobs:
           python-version: '3.14'
           architecture: x64
       - name: Instalar cliente
-        run: python -m pip install .
+        run: python -m pip install . "cryptography>=46"
       - name: Instalar runtime fixado e executar smoke local
         shell: python
         run: |
