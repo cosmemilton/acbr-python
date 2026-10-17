@@ -11,6 +11,9 @@ reimplementar cálculos, assinatura ou regras fiscais. A API pública oferece
 `inutilizar` e a interface experimental `recuperar_xml`. Todas as operações
 que podem acessar a SEFAZ exigem `allow_network=True` explícito por chamada.
 
+O runtime fixado é **0.2.1**: ele preserva os executáveis e o contrato da
+0.2.0 e completa os textos de licença que acompanham a distribuição nativa.
+
 Este repositório contém o SDK público reutilizável. Aplicações consumidoras,
 inclusive uma integração privada, instalam o pacote e fornecem sua própria
 configuração em execução. Dados de empresas, certificados e credenciais da
@@ -24,20 +27,24 @@ A matriz da CI cobre essas versões nos dois sistemas; uma matriz configurada
 não significa que uma execução tenha passado. macOS, ARM, Python 32 bits,
 Alpine/musl e outras implementações Python não fazem parte deste MVP.
 
-O pacote ainda não foi publicado no PyPI. Na cópia deste repositório:
+Crie um ambiente virtual:
 
 ```console
 python -m venv .venv
 ```
 
 Ative o ambiente (`.venv\Scripts\Activate.ps1` no PowerShell ou
-`source .venv/bin/activate` no bash) e instale o cliente:
+`source .venv/bin/activate` no bash). Para instalar pelo PyPI quando a versão
+estiver disponível:
 
 ```console
-python -m pip install .
+python -m pip install acbr-python==0.1.0a3
 python -m acbr ajuda Ide.cUF
 python -m acbr ajuda TProd
 ```
+
+Para desenvolvimento ou antes da primeira publicação, instale na cópia
+deste repositório com `python -m pip install .`; os comandos de ajuda são iguais.
 
 Esses comandos de ajuda são offline e não exigem runtime. Para as operações
 nativas, a instalação é uma etapa explícita, separada de `pip install`:
@@ -47,7 +54,7 @@ python -m acbr runtime install --directory .runtime
 python -m acbr doctor --directory .runtime/runtime
 ```
 
-O instalador escolhe o arquivo original 0.2.0 para o sistema e arquitetura
+O instalador escolhe o arquivo original 0.2.1 para o sistema e arquitetura
 atuais. Antes de extrair, verifica tamanho e SHA-256 fixados no pacote; depois
 confere os arquivos do inventário. Não executa scripts de instalação npm.
 Fontes, licenças, schemas, serviços e bibliotecas acompanham o runtime.
@@ -201,7 +208,7 @@ nativos mantêm as respectivas licenças e exceções.
 
 Referências oficiais consultadas:
 
-- [ACBr Node e seu worker](https://github.com/cosmemilton/acbr-node), versão 0.2.0.
+- [ACBr Node e seu worker](https://github.com/cosmemilton/acbr-node), origem 0.2.0 e distribuição nativa fixada 0.2.1.
 - [ACBr PHP](https://github.com/cosmemilton/acbr-php), referência de adaptação.
 - [Guia PyPA para pyproject.toml](https://packaging.python.org/en/latest/guides/writing-pyproject-toml/).
 - [Dados de pacote no setuptools](https://setuptools.pypa.io/en/latest/userguide/datafiles.html).

@@ -23,16 +23,17 @@ Este aviso não substitui nem amplia as permissões dessas licenças.
 
 O wheel e o sdist Python não incluem executáveis nem bibliotecas nativas.
 A instalação explícita do runtime usa os arquivos originais da distribuição
-cosmemilton-acbr-node 0.2.0, sem reempacotar os binários, e deve preservar
+cosmemilton-acbr-node 0.2.1, sem reempacotar os binários, e deve preservar
 runtime/licenses e runtime/sources, junto ao inventário e aos demais arquivos.
 O instalador preserva os materiais fornecidos no arquivo de origem fixado.
-Na inspeção local do runtime Linux 0.2.0, os avisos de libssl, libcrypto
-e legacy.so declaram Apache-2.0 e remetem ao texto externo em
-/usr/share/common-licenses/Apache-2.0; não foi localizada cópia integral
-equivalente no tgz nem em suas fontes internas. A completude das licenças
-dessa distribuição nativa não está atestada por este cliente Python.
-Uma redistribuição nativa corrigida deve preservar os avisos, incluir
-o texto integral aplicável e usar nova versão, manifesto e hashes,
-sem substituir o arquivo 0.2.0 já publicado.
+A ausência de texto Apache-2.0 integral localizada no runtime Linux 0.2.0
+foi corrigida na distribuição 0.2.1. Os dois arquivos originais fixados
+incluem runtime/licenses/common/Apache-2.0.txt e INVENTORY.json, junto aos
+avisos e demais textos aplicáveis. Seus bytes, hashes, inventários e
+referências de licença foram conferidos nos tarballs publicados.
+Os executáveis e o contrato permanecem idênticos aos da distribuição 0.2.0.
+Essa conferência técnica não certifica conformidade jurídica integral.
+Qualquer redistribuição deve preservar os materiais e observar as
+obrigações das licenças dos respectivos componentes.
 
 Nenhuma afiliação ou certificação oficial pelo Projeto ACBr é declarada.

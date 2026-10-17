@@ -2,6 +2,7 @@
 
 O pacote importa como `acbr` e funciona sem Django, Flask, Node.js ou PHP.
 Esta referência descreve a API Python sobre o worker ACBr 0.2.0 original.
+Sua distribuição nativa fixada é 0.2.1, com os mesmos executáveis e contrato.
 Não há homologação fiscal nem teste de rede contra a SEFAZ nesta entrega.
 
 ## Configuração e ciclo de vida
@@ -207,6 +208,7 @@ dos testes. Qualquer relatório de assinatura nativa deve identificar os
 sistemas efetivamente testados.
 
 O alvo permanece CPython 3.11–3.14, Windows x64 e Linux x64/glibc, com CI nos
-dois sistemas. O runtime e os pins de integridade continuam na versão 0.2.0.
+dois sistemas. O runtime e os pins de integridade usam a distribuição 0.2.1,
+que preserva os executáveis e o contrato da 0.2.0 e completa seus textos de licença.
 Veja [arquitetura](architecture.md) e o relatório da execução de testes para
 os limites observados. Nenhum teste autoriza usar este SDK como homologado.

@@ -80,7 +80,7 @@ jobs:
           import subprocess
           import sys
 
-          destination = Path(os.environ['RUNNER_TEMP']) / 'acbr-runtime-0.2.0'
+          destination = Path(os.environ['RUNNER_TEMP']) / 'acbr-runtime-0.2.1'
           subprocess.run([sys.executable, '-m', 'acbr', 'runtime', 'install', '--directory', str(destination)], check=True)
           runtime = destination / 'runtime'
           subprocess.run([sys.executable, '-m', 'acbr', 'doctor', '--directory', str(runtime)], check=True)
