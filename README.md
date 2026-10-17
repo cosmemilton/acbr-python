@@ -1,14 +1,20 @@
 # ACBr Python
 
 Cliente Python independente de Django, Flask ou outro framework para o worker
-nativo público ACBr NF-e/NFC-e. **Versão inicial 0.1.0a1, sem homologação fiscal.**
+nativo público ACBr NF-e/NFC-e. **Versão alpha 0.1.0a2, sem homologação fiscal.**
 O pacote é instalado com pip e importa como `acbr`; não há dependências Python
 de execução nem necessidade de Node.js ou PHP.
 
-O MVP reaproveita o worker 0.2.0 e o contrato de `cosmemilton/acbr-node`, sem
-reimplementar cálculos, assinatura ou regras fiscais. A API inicial oferece
-`gerar_xml`, `validar` e a interface experimental `recuperar_xml`. As demais
-operações do worker não são expostas nesta versão.
+O SDK reaproveita o worker 0.2.0 e o contrato de `cosmemilton/acbr-node`, sem
+reimplementar cálculos, assinatura ou regras fiscais. A API pública oferece
+`gerar_xml`, `validar`, `assinar`, `transmitir`, `consultar`, `cancelar`,
+`inutilizar` e a interface experimental `recuperar_xml`. Todas as operações
+que podem acessar a SEFAZ exigem `allow_network=True` explícito por chamada.
+
+Este repositório contém o SDK público reutilizável. Aplicações consumidoras,
+inclusive uma integração privada, instalam o pacote e fornecem sua própria
+configuração em execução. Dados de empresas, certificados e credenciais da
+aplicação consumidora não fazem parte do SDK.
 
 ## Plataformas e instalação
 
@@ -76,7 +82,7 @@ with Emissor(config, runtime_directory=Path(".runtime/runtime"), timeout=120) as
 
 Um XML sem assinatura pode falhar no schema que exige assinatura. A validação
 estrutural Python e a validação local nativa não substituem homologação nem
-autorização fiscal. Nenhum teste desta entrega usa certificado A1 real,
+autorização fiscal. Nenhum teste desta entrega usa certificado A1 de contribuinte,
 documentos privados ou tráfego fiscal.
 
 ## Modelos, campos e tipos
@@ -114,7 +120,43 @@ Resultados e erros têm tipos próprios; `ResultadoFiscal.xml` exige acesso
 explícito ao conteúdo. Não registre XML, PFX, senhas nem a carga completa de
 uma chamada. As representações padrão ocultam conteúdo sensível.
 
-## Recuperação de XML: interface experimental
+Para registrar o início observado de um envio na aplicação consumidora,
+`Emissor(..., ao_iniciar_envio=callback)` entrega ao callback um `EventoEnvio`
+imutável, com identificador de correlação e comando, sem dados fiscais.
+O evento apenas observa o marcador do worker para `transmitir`, `cancelar`
+ou `inutilizar`; não confirma aceitação, não fornece idempotência e não
+garante persistência antes do envio. Se o callback falhar, o resultado pode
+ser incerto e não há repetição automática.
+
+## Operações públicas e acesso à rede
+
+| Método | Entrada | Rede fiscal |
+| --- | --- | --- |
+| `gerar_xml` | `Documento` ou dicionário do contrato | Não |
+| `validar` | XML em texto | Não |
+| `assinar` | XML em texto, com A1 na configuração | Não |
+| `transmitir` | XML assinado | Exige `allow_network=True` |
+| `consultar` | `Consulta` com chave e recibo opcional | Exige `allow_network=True` |
+| `cancelar` | `Cancelamento` | Exige `allow_network=True` |
+| `inutilizar` | `Inutilizacao` | Exige `allow_network=True` |
+| `recuperar_xml` | XML assinado, interface experimental | Exige `allow_network=True` |
+
+`Consulta`, `Cancelamento` e `Inutilizacao` são dataclasses de entrada
+exportadas por `acbr`. Todas as operações retornam `ResultadoFiscal` e
+aceitam `cancel=threading.Event()`. Os métodos de rede também requerem A1 na
+configuração. O bloqueio é aplicado antes de iniciar uma chamada ao worker;
+selecionar `ambiente=2` não libera rede por si só.
+
+O cliente não oferece repetição automática nem opções de lote ou modo
+assíncrono. A transmissão segue o comportamento síncrono do worker fixado.
+A CLI oferece somente ajuda e gestão do runtime: não há comandos CLI para
+transmitir, consultar, cancelar ou inutilizar documentos.
+
+Veja as assinaturas, tipos, resultados e erros na [referência da API](docs/api.md).
+As operações de rede são verificadas por protocolo simulado; nenhuma delas
+foi exercitada contra a SEFAZ nesta entrega.
+
+### Recuperação de XML: interface experimental
 
 `recuperar_xml(xml_assinado)` requer `CertificadoA1(pfx: bytes, senha: str)` na
 configuração e pode consultar a SEFAZ para reconstruir o XML processado.
@@ -122,10 +164,9 @@ A chamada só permite rede com `allow_network=True` explícito; o padrão a
 bloqueia. O cliente envia o certificado pelo stdin, nunca por argumentos.
 
 Nesta entrega, essa interface só é verificada por testes de protocolo com
-worker simulado e materiais sintéticos. Não há teste de recuperação na SEFAZ,
-assinatura real ou certificado de contribuinte. A implementação não deve ser
-tratada como homologada. Não é disponibilizado exemplo que realize essa
-consulta.
+worker simulado e materiais sintéticos. Não há teste de recuperação na SEFAZ
+nem uso de certificado de contribuinte. A implementação não deve ser tratada
+como homologada. Não é disponibilizado exemplo que realize essa consulta.
 
 ## Desenvolvimento e verificação
 
@@ -140,13 +181,16 @@ python -m build
 A suíte padrão usa fixtures e workers simulados e dispensa internet após a
 instalação das ferramentas. O teste nativo é opt-in: defina
 `ACBR_TEST_RUNTIME` para o caminho de uma instalação verificada e execute
-`python -m unittest discover -s tests -p test_native.py -v`. Esse smoke test
-é limitado a geração, validação local e entrada inválida; não realiza
-operações fiscais remotas. A CI instala explicitamente os runtimes Windows
-e Linux para executar esse teste, além da matriz de testes offline e build.
+`python -m unittest discover -s tests -p test_native.py -v`. Instale antes
+`python -m pip install "cryptography>=46"`: essa dependência é somente dos
+testes e cria um A1 sintético efêmero; ela não é dependência de execução do
+SDK. O smoke cobre geração, assinatura e validação locais pela API pública,
+rejeição de assinatura alterada e entrada inválida, sem operações fiscais
+remotas. A CI instala explicitamente os runtimes Windows e Linux e essa
+dependência de teste, além da matriz de testes offline e build.
 Não há publicação automática nem credenciais de publicação na CI.
 
-Veja [arquitetura e escopo](docs/architecture.md) para as decisões do MVP.
+Veja [arquitetura e escopo](docs/architecture.md) para as decisões do SDK.
 
 ## Licenças e fontes
 

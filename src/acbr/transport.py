@@ -12,11 +12,18 @@ import subprocess
 import threading
 import time
 from pathlib import Path
+from collections.abc import Callable
 
 from .errors import AcbrError, Diagnostico
 from .result import ResultadoFiscal
+from .operations import EventoEnvio
 
 STATES = frozenset("DENEGADO XML_GERADO VALIDADO ASSINADO XML_RECUPERADO AUTORIZADO REJEITADO PENDENTE INDETERMINADO CONSULTADO CANCELADO EVENTO_REGISTRADO INUTILIZADO ERRO".split())
+COMMANDS = frozenset({"gerarXml", "validar", "assinar", "transmitir", "consultar", "recuperarXml", "cancelar", "inutilizar"})
+MUTATING = frozenset({"transmitir", "cancelar", "inutilizar"})
+PENDING_CODES = frozenset({103, 104, 105, 108, 109, 204, 539, 573})
+PHASES = {"gerarXml": "geracao", "validar": "validacao", "assinar": "assinatura", "transmitir": "transmissao",
+          "consultar": "consulta", "recuperarXml": "consulta", "cancelar": "cancelamento", "inutilizar": "inutilizacao"}
 MAX_BYTES = 8 * 1024 * 1024
 
 
@@ -33,12 +40,44 @@ def _reject_constant(value):
     raise ValueError("nonfinite")
 
 
+def _xml_text(value):
+    if not isinstance(value, str):
+        raise ValueError()
+    decoded = base64.b64decode(value, validate=True)
+    if not 0 < len(decoded) <= 4 * 1024 * 1024 or base64.b64encode(decoded).decode("ascii") != value:
+        raise ValueError()
+    return decoded.decode("utf-8")
+
+
+def _fiscal_state(command, code):
+    """Mesma classificação de NativeMotor.Resultado do worker 0.2.0."""
+    if code in {100, 150}:
+        return "AUTORIZADO"
+    if code in {110, 301, 302}:
+        return "DENEGADO"
+    if code in {101, 151, 155}:
+        return "CANCELADO"
+    if code in PENDING_CODES:
+        return "PENDENTE"
+    if command == "cancelar" and code in {135, 136}:
+        return "CANCELADO"
+    if command == "inutilizar" and code == 102:
+        return "INUTILIZADO"
+    if command == "consultar" and code == 217:
+        return "CONSULTADO"
+    return "REJEITADO"
+
+
 class ProcessTransport:
-    def __init__(self, timeout: float = 120, max_bytes: int = MAX_BYTES):
+    def __init__(self, timeout: float = 120, max_bytes: int = MAX_BYTES, *,
+                 ao_iniciar_envio: Callable[[EventoEnvio], None] | None = None):
         if type(timeout) not in (float, int) or not math.isfinite(timeout) or not 0 < timeout <= 120 or type(max_bytes) is not int or not 256 <= max_bytes <= MAX_BYTES:
             raise AcbrError("CONFIGURACAO_INVALIDA", "Prazo ou limite de bytes inválido.")
         self.timeout = timeout
         self.max_bytes = max_bytes
+        if ao_iniciar_envio is not None and not callable(ao_iniciar_envio):
+            raise AcbrError("CONFIGURACAO_INVALIDA", "ao_iniciar_envio deve ser uma função.", campo="ao_iniciar_envio")
+        self.ao_iniciar_envio = ao_iniciar_envio
         self._closed = threading.Event()
         self._lock = threading.Lock()
         self._active_lock = threading.Lock()
@@ -58,7 +97,7 @@ class ProcessTransport:
                 process.kill()
             process.wait(timeout=1)
             return True
-        except (OSError, subprocess.TimeoutExpired):
+        except Exception:
             return False
 
     def execute(self, executable: Path, directory: Path, environment: dict[str, str], request: dict,
@@ -72,6 +111,10 @@ class ProcessTransport:
             self._lock.release()
 
     def _execute(self, executable, directory, environment, request, cancel, args):
+        if not isinstance(request, dict) or not isinstance(request.get("comando"), str) or request["comando"] not in COMMANDS:
+            raise AcbrError("OPERACAO_NAO_SUPORTADA", "Comando não suportado pelo transporte público.")
+        if type(request.get("versao")) is not int or request["versao"] != 1 or type(request.get("sourceRevision")) is not int or request["sourceRevision"] <= 0 or not isinstance(request.get("contractHash"), str) or not re.fullmatch(r"[a-f0-9]{64}", request["contractHash"]) or not isinstance(request.get("id"), str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", request["id"]):
+            raise AcbrError("REQUISICAO_INVALIDA", "Identificação ou contrato da requisição inválido.")
         if cancel is not None and not isinstance(cancel, threading.Event):
             raise AcbrError("OPERACAO_INVALIDA", "Cancelamento exige threading.Event.")
         if self._closed.is_set():
@@ -87,6 +130,12 @@ class ProcessTransport:
             raise AcbrError("REQUISICAO_EXCESSIVA", "Requisição excede o limite de bytes.")
         process = None
         sending = False
+        original_xml = None
+        if request["comando"] == "transmitir":
+            try:
+                original_xml = _xml_text(request.get("xmlBase64"))
+            except (ValueError, TypeError, UnicodeError, binascii.Error):
+                pass
         error = None
         clean = True
         events: queue.Queue = queue.Queue(maxsize=32)
@@ -95,6 +144,7 @@ class ProcessTransport:
         overflow = threading.Event()
         counters = threading.Lock()
         threads = []
+        writer_thread = None
         deadline = time.monotonic() + self.timeout
 
         def put(item):
@@ -136,9 +186,48 @@ class ProcessTransport:
                 put(("written", None))
             except (OSError, ValueError):
                 put(("pipe_error", None))
+            finally:
+                if stop.is_set():
+                    payload[:] = b"\0" * len(payload)
 
         def fail(code, message):
-            return AcbrError(code, message, sending, etapa="runtime")
+            # Um marcador não recebido pode estar no pipe ou ter sido perdido
+            # antes de o processo falhar. Nunca repetir uma mutação após spawn.
+            uncertain = request["comando"] in MUTATING and process is not None
+            return AcbrError(code, message, uncertain, etapa="runtime",
+                             xml_original=original_xml if uncertain else None)
+
+        def check_stopped():
+            if self._closed.is_set():
+                raise fail("EMISSOR_FECHADO", "Emissor encerrado.")
+            if cancel is not None and cancel.is_set():
+                raise fail("OPERACAO_CANCELADA", "Operação cancelada.")
+            if time.monotonic() >= deadline:
+                raise fail("TIMEOUT_MOTOR", "O motor excedeu o prazo.")
+
+        def emit_send_event():
+            if self.ao_iniciar_envio is None:
+                return
+            event = EventoEnvio(id=request["id"], comando=request["comando"])
+            finished, failed = threading.Event(), threading.Event()
+
+            def invoke():
+                try:
+                    self.ao_iniciar_envio(event)
+                except BaseException:
+                    # Nunca expõe mensagens/tracebacks do callback do consumidor.
+                    failed.set()
+                finally:
+                    finished.set()
+
+            thread = threading.Thread(target=invoke, daemon=True)
+            thread.start()
+            threads.append(thread)
+            while not finished.wait(timeout=.02):
+                check_stopped()
+            check_stopped()
+            if failed.is_set():
+                raise fail("FALHA_EVENTO_ENVIO", "Não foi possível concluir o callback do evento de envio.")
 
         try:
             flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
@@ -152,18 +241,15 @@ class ProcessTransport:
                 self._active = process
             for target, arguments in ((reader, (process.stdout, "stdout")), (reader, (process.stderr, "stderr")), (writer, ())):
                 thread = threading.Thread(target=target, args=arguments, daemon=True)
-                threads.append(thread)
                 thread.start()
+                threads.append(thread)
+                if target is writer:
+                    writer_thread = thread
             buffer = bytearray()
             done = set()
             result = None
             while True:
-                if self._closed.is_set():
-                    raise fail("EMISSOR_FECHADO", "Emissor encerrado.")
-                if cancel is not None and cancel.is_set():
-                    raise fail("OPERACAO_CANCELADA", "Operação cancelada.")
-                if time.monotonic() >= deadline:
-                    raise fail("TIMEOUT_MOTOR", "O motor excedeu o prazo.")
+                check_stopped()
                 if overflow.is_set():
                     raise fail("RESPOSTA_EXCESSIVA", "Saída do motor excede o limite de bytes.")
                 try:
@@ -186,11 +272,11 @@ class ProcessTransport:
                             if not isinstance(frame, dict) or frame.get("id") != request["id"]:
                                 raise ValueError()
                             if frame.get("tipo") == "envioIniciado":
-                                if sending or result is not None:
+                                if request["comando"] not in MUTATING or sending or result is not None or set(frame) != {"id", "tipo"}:
                                     raise ValueError()
                                 sending = True
-                                # The MVP has no mutating fiscal commands. A send marker is invalid.
-                                raise ValueError()
+                                emit_send_event()
+                                continue
                             if result is not None:
                                 raise ValueError()
                             result = self._result(frame, request, sending)
@@ -204,6 +290,9 @@ class ProcessTransport:
         except AcbrError as exc:
             error = exc
             raise
+        except (KeyboardInterrupt, SystemExit):
+            error = fail("OPERACAO_CANCELADA", "Operação interrompida; confira a situação fiscal antes de continuar.")
+            raise error from None
         except Exception:
             error = fail("FALHA_MOTOR", "Falha durante a operação do motor.")
             raise error from None
@@ -218,11 +307,13 @@ class ProcessTransport:
                 for stream in (process.stdin, process.stdout, process.stderr):
                     try:
                         stream.close()
-                    except (OSError, ValueError):
+                    except Exception:
                         clean = False
                 with self._active_lock:
                     self._active = None
-            if not any(thread.is_alive() for thread in threads):
+            # Leitores e callbacks não acessam o buffer de PFX da requisição.
+            # Um callback preso não pode impedir a limpeza quando o writer acabou.
+            if writer_thread is None or not writer_thread.is_alive():
                 payload[:] = b"\0" * len(payload)
             if not clean:
                 self._closed.set()
@@ -230,7 +321,10 @@ class ProcessTransport:
                     error.limpeza_confirmada = False
                     object.__setattr__(error.diagnostico, "limpeza_confirmada", False)
                 else:
-                    raise AcbrError("ENCERRAMENTO_NAO_CONFIRMADO", "Encerramento do motor não confirmado.", sending, limpeza_confirmada=False)
+                    failure = fail("ENCERRAMENTO_NAO_CONFIRMADO", "Encerramento do motor não confirmado.")
+                    failure.limpeza_confirmada = False
+                    object.__setattr__(failure.diagnostico, "limpeza_confirmada", False)
+                    raise failure
 
     @staticmethod
     def _result(frame, request, sending):
@@ -246,30 +340,67 @@ class ProcessTransport:
                 raise ValueError()
         if "cStat" in frame and (type(frame["cStat"]) is not int or not 1 <= frame["cStat"] <= 9999):
             raise ValueError()
-        if "envioIniciado" in frame and (type(frame["envioIniciado"]) is not bool or frame["envioIniciado"]):
+        cmd = request["comando"]
+        if type(frame.get("envioIniciado")) is not bool or frame["envioIniciado"] != sending or sending and cmd not in MUTATING:
+            raise ValueError()
+        for key, width in (("chave", 44), ("protocolo", 15), ("recibo", 15)):
+            if key in frame and not re.fullmatch(r"[0-9]{" + str(width) + r"}", frame[key]):
+                raise ValueError()
+        if "chave" in frame and cmd in {"consultar", "cancelar"} and frame["chave"] != request.get("chave"):
+            raise ValueError()
+        if "recibo" in frame and cmd == "consultar" and frame["recibo"] != request.get("recibo"):
             raise ValueError()
         xml = frame.get("xmlBase64")
         if xml is not None:
-            decoded = base64.b64decode(xml, validate=True)
-            if not 0 < len(decoded) <= 4 * 1024 * 1024 or base64.b64encode(decoded).decode("ascii") != xml:
+            _xml_text(xml)
+        state, success, code = frame["estado"], frame["sucesso"], frame.get("cStat")
+        if state == "ERRO":
+            if success or sending or code is not None:
                 raise ValueError()
-            decoded.decode("utf-8")
-        cmd = request["comando"]
-        if not frame["sucesso"]:
-            allowed_failure = {"ERRO", "CONSULTADO"} if cmd == "recuperarXml" else {"ERRO"}
-            if frame["estado"] not in allowed_failure:
+        elif state == "INDETERMINADO":
+            if success or not sending or cmd not in MUTATING or any(key in frame for key in ("cStat", "protocolo", "recibo")) or cmd != "transmitir" and xml is not None:
                 raise ValueError()
-        if frame["sucesso"]:
-            state = {"gerarXml": "XML_GERADO", "validar": "VALIDADO", "recuperarXml": "XML_RECUPERADO"}[cmd]
-            if frame["estado"] != state or cmd != "validar" and xml is None:
+            if cmd == "transmitir" and (xml is None or xml != request.get("xmlBase64")):
                 raise ValueError()
-        if frame["estado"] == "XML_RECUPERADO" or cmd == "recuperarXml" and frame["sucesso"]:
-            if cmd != "recuperarXml" or not frame["sucesso"] or frame.get("cStat") != 100 or not re.fullmatch(r"[0-9]{44}", frame.get("chave", "")) or not re.fullmatch(r"[0-9]{15}", frame.get("protocolo", "")) or xml is None or sending:
+        elif cmd in {"gerarXml", "validar", "assinar"}:
+            if not success or state != {"gerarXml": "XML_GERADO", "validar": "VALIDADO", "assinar": "ASSINADO"}[cmd] or code is not None or cmd != "validar" and xml is None:
                 raise ValueError()
+        elif cmd == "recuperarXml":
+            if success:
+                if state != "XML_RECUPERADO" or code != 100 or "chave" not in frame or "protocolo" not in frame or xml is None:
+                    raise ValueError()
+            elif state != "CONSULTADO" or code is None or code == 100 or "chave" not in frame or any(key in frame for key in ("xmlBase64", "protocolo", "recibo")):
+                raise ValueError()
+        else:
+            expected = _fiscal_state(cmd, code)
+            if code is None or state != expected or success != (expected not in {"DENEGADO", "REJEITADO", "PENDENTE"}) or cmd in MUTATING and not sending:
+                raise ValueError()
+            if cmd in {"transmitir", "consultar", "cancelar"} and "chave" not in frame:
+                raise ValueError()
+            if code in {100, 150} or cmd == "cancelar" and code in {135, 136} or cmd == "inutilizar" and code == 102:
+                if "protocolo" not in frame:
+                    raise ValueError()
+            if state == "AUTORIZADO" and "chave" not in frame or cmd == "transmitir" and state == "AUTORIZADO" and xml is None:
+                raise ValueError()
+            if cmd == "inutilizar" and state == "INUTILIZADO" and (xml is None or "chave" in frame):
+                raise ValueError()
+            if cmd == "transmitir" and code == 103 and "recibo" not in frame:
+                raise ValueError()
+            if cmd == "consultar" and request.get("recibo") is not None and frame.get("recibo") != request["recibo"]:
+                raise ValueError()
+        status = {"AUTORIZADO": "autorizado", "XML_RECUPERADO": "autorizado", "CANCELADO": "cancelado",
+                  "INUTILIZADO": "inutilizado", "DENEGADO": "denegado", "REJEITADO": "rejeitado",
+                  "PENDENTE": "pendente", "INDETERMINADO": "resultado_incerto"}.get(state, "nao_enviado")
+        if cmd == "consultar" and code == 217 or cmd == "recuperarXml" and not success and code is not None:
+            status = "nao_autorizado" if code == 217 else "recuperacao_nao_comprovada"
+        if status == "resultado_incerto":
+            action = "Confira a situação fiscal antes de repetir; não retransmita automaticamente."
+        elif state == "PENDENTE":
+            action = "Consulte a situação fiscal antes de qualquer nova tentativa."
+        else:
+            action = "Guarde o resultado fiscal." if success else "Confira os dados e o código retornado antes de continuar."
         diagnostic = Diagnostico(
-            "XML_RECUPERADO" if frame["sucesso"] and cmd == "recuperarXml" else "ETAPA_LOCAL_CONCLUIDA" if frame["sucesso"] else "OPERACAO_FISCAL_FALHOU",
-            {"gerarXml": "geracao", "validar": "validacao", "recuperarXml": "consulta"}[cmd],
-            "Etapa concluída." if frame["sucesso"] else "O motor não concluiu a etapa.",
-            "Guarde o resultado fiscal." if frame["sucesso"] else "Confira os dados e o código retornado antes de continuar.",
-            "autorizado" if frame["sucesso"] and cmd == "recuperarXml" else "nao_enviado", c_stat=frame.get("cStat"))
+            state if success and cmd not in {"gerarXml", "validar"} else "ETAPA_LOCAL_CONCLUIDA" if success else "OPERACAO_FISCAL_FALHOU",
+            PHASES[cmd], "Etapa concluída." if success else "O motor não concluiu a etapa.", action,
+            status, c_stat=code)
         return ResultadoFiscal(frame["sucesso"], frame["estado"], diagnostic, frame.get("codigo"), frame.get("cStat"), frame.get("chave"), frame.get("protocolo"), frame.get("recibo"), xml, frame.get("xMotivo"), sending)
