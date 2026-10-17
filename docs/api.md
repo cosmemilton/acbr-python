@@ -1,9 +1,59 @@
-# API pública — 0.1.0a3
+# API pública - checkout 0.1.0a4.dev0
 
 O pacote importa como `acbr` e funciona sem Django, Flask, Node.js ou PHP.
 Esta referência descreve a API Python sobre o worker ACBr 0.2.0 original.
 Sua distribuição nativa fixada é 0.2.1, com os mesmos executáveis e contrato.
 Não há homologação fiscal nem teste de rede contra a SEFAZ nesta entrega.
+
+A versão publicada no PyPI é **0.1.0a3**. Este documento inclui as melhorias
+de ajuda da **0.1.0a4.dev0**, ainda não publicada. A API `describe_field` e a
+CLI `ajuda TARGET` em JSON já existem na 0.1.0a3; `describe_type`, a CLI
+`describe` e `--version` são novidades deste checkout.
+
+## Consulta offline do contrato
+
+```python
+from acbr import describe_field, describe_type  # describe_type: checkout 0.1.0a4.dev0
+
+campo = describe_field("Ide.tpNF")
+tipo = describe_type("TTipoNFe")
+assert campo["values"] == tipo["values"] == ["tnEntrada", "tnSaida"]
+assert campo["declaredDefault"] == "tnSaida"
+assert "declaredDefault" not in tipo
+```
+
+`describe_field(path: str) -> dict` aceita caminhos de campos ou nomes exatos
+de tipos do contrato. `Ide.tpNF` e `TNFe.Ide.tpNF` selecionam o mesmo campo.
+Coleções usam `[]` ou índice numérico; `Det[0].Prod.vProd` é normalizado para
+`TNFe.Det[].Prod.vProd` no resultado. Um nome curto só é aceito se não houver
+ambiguidade. A consulta distingue maiúsculas e minúsculas.
+
+`describe_type(name: str) -> dict`, nova neste checkout, aceita somente nomes
+exatos de tipos de objeto, lista ou enum do contrato, como `TProd`,
+`TDetCollection` ou `TTipoNFe`. Caminhos de campos, nomes com espaços, outra
+capitalização e aliases Python com sufixo `Output` são rejeitados com
+`AcbrError` e código `TIPO_INVALIDO`. Para defaults e limites específicos
+de um campo, use `describe_field`.
+
+As duas funções retornam dicionários independentes com procedência
+(`sourceRevision`, `sourceHash`, `contractHash`, `sdkVersion`), tipo Pascal,
+tipo JSON de entrada e metadados disponíveis. A consulta de um tipo não
+inventa os defaults de seus campos. O `sdkVersion` identifica o código
+Python consultado; não é a versão do runtime.
+
+Os enums gerados em `acbr.models` são aliases `typing.Literal`. Por exemplo,
+`typing.get_args(TTipoNFe)` devolve `('tnEntrada', 'tnSaida')`; não há membros
+de classe como `TTipoNFe.tnSaida`. O contrato declara `tnSaida` como padrão
+de `Ide.tpNF`; a ajuda não insere esse valor em um `Documento` nem o converte
+para códigos ou regras fiscais.
+
+Essas funções e os comandos de ajuda não exigem instalação do runtime,
+certificado, processo nativo ou rede. Na CLI do checkout, `describe TARGET`
+usa texto e `describe TARGET --json` usa o mesmo objeto de
+`describe_field(TARGET)`; `ajuda TARGET` preserva a interface JSON existente.
+Erros de consulta em texto saem em stderr com código 1; em JSON e `ajuda`,
+saem em stdout com código 1. Erros de sintaxe da CLI usam stderr e código 2.
+Veja os exemplos e formatos no [guia de ajuda](ajuda.md).
 
 ## Configuração e ciclo de vida
 

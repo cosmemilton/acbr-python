@@ -37,6 +37,8 @@ def render(metadata: dict) -> str:
         "All input properties are optional; omitted values use native defaults.",
         "Readonly properties occur only in Output types. Decimal and civil ISO",
         "date/time values are strings. Runtime validation is in acbr.contract.",
+        "Use acbr.describe_type(name) for contract metadata and typing.get_args",
+        "for the exact string values of a Literal alias.",
         f"Source: cosmemilton/acbr-node@{UPSTREAM_COMMIT} (LGPL-2.1-or-later).",
         f"Contract SHA256: {CONTRACT_HASH}.",
         '"""', "", "from __future__ import annotations", "",
@@ -45,6 +47,23 @@ def render(metadata: dict) -> str:
 
     def reference(name: str, output: bool) -> str:
         return name + ("Output" if output and kinds[name] in ("object", "list") else "")
+
+    def object_docstring(node: dict, output: bool) -> str:
+        name = node["name"]
+        mode = "Saída" if output else "Entrada"
+        properties = (f"Admite propriedades somente leitura; use {name} para entrada."
+                      if output else f"Omite propriedades somente leitura; {name}Output admite todas.")
+        return "\n".join([
+            f"{mode} parcial de {name}, unidade {node['unit']}.",
+            "",
+            "TypedDict total=False: todos os membros são opcionais estruturalmente.",
+            properties,
+            "TypedDict não valida valores em execução.",
+            "Para validar a estrutura de uma entrada TNFe, use acbr.validate_document.",
+            "Schema e regras fiscais dependem do runtime ACBr.",
+            "Enums usam strings Literal; decimais e datas/horários civis ISO usam str.",
+            f"Metadados do contrato: acbr.describe_type({name!r}).",
+        ])
 
     # Enums precede TypedDicts for readable annotations and editor completion.
     for node in types:
@@ -61,6 +80,9 @@ def render(metadata: dict) -> str:
             if any(not prop["name"].isidentifier() or keyword.iskeyword(prop["name"]) for prop in props):
                 raise ValueError(f"Python keyword requires explicit generator handling in {name}")
             lines.append(f"class {name}(TypedDict, total=False):")
+            # A quoted literal safely preserves metadata even if an upstream
+            # unit/type name contains characters significant to Python syntax.
+            lines.append(f"    {object_docstring(node, output)!r}")
             if not props:
                 lines.append("    pass")
             for prop in props:
