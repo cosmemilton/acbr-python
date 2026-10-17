@@ -1,7 +1,7 @@
 # ACBr Python
 
 Cliente Python independente de Django, Flask ou outro framework para o worker
-nativo público ACBr NF-e/NFC-e. **Versão alpha 0.1.0a2, sem homologação fiscal.**
+nativo público ACBr NF-e/NFC-e. **Versão alpha 0.1.0a3, sem homologação fiscal.**
 O pacote é instalado com pip e importa como `acbr`; não há dependências Python
 de execução nem necessidade de Node.js ou PHP.
 

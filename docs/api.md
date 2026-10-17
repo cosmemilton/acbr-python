@@ -1,4 +1,4 @@
-# API pública — 0.1.0a2
+# API pública — 0.1.0a3
 
 O pacote importa como `acbr` e funciona sem Django, Flask, Node.js ou PHP.
 Esta referência descreve a API Python sobre o worker ACBr 0.2.0 original.
@@ -162,6 +162,18 @@ após iniciar o processo, `AcbrError.xml_original` pode disponibilizar o XML
 assinado original da chamada, por acesso explícito. Esse conteúdo é sensível e fica fora
 do `repr` do erro e do resumo do diagnóstico; não o registre em logs.
 `limpeza_confirmada` informa se o cliente confirmou o encerramento observado.
+
+## Retorno original privado
+
+`ResultadoFiscal.retorno_original` e `AcbrError.retorno_original` devolvem uma
+cópia do último frame terminal JSON validado, com os campos adicionais recebidos,
+ou `None` se nenhum estiver disponível. `origem_retorno_original` identifica
+`acbr_worker_jsonl`: não é o SOAP/HTTP original nem uma resposta reconstruída.
+O frame preservado não altera a incerteza de um erro posterior de transporte.
+
+`to_dict()` continua sendo o resumo seguro. `retorno_original` e
+`dataclasses.asdict(resultado)` podem conter XML e dados privados; não os use
+em logs. Veja o [mapa de retornos e seus limites](retornos-originais.md).
 
 ## Cancelamento, prazo e reconciliação
 

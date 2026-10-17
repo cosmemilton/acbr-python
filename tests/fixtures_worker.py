@@ -42,10 +42,15 @@ if mode.startswith("status_"):
         frame["recibo"] = "1" * 15
     if status not in {100, 150}:
         frame.pop("protocolo", None)
-if mode == "native_error":
+if mode in {"native_error", "original_error"}:
     frame.update(sucesso=False, estado="ERRO", envioIniciado=False, codigo="SYNTHETIC-PRIVATE-CODE")
     for name in ("cStat", "xmlBase64", "protocolo", "recibo"):
         frame.pop(name, None)
+if mode.startswith("original_") or mode == "original":
+    frame["xMotivo"] = "SYNTHETIC-PRIVATE-WORKER-RETURN"
+    frame["extraACBr"] = {"xmlAdicional": "<SYNTHETIC-PRIVATE-WORKER-RETURN/>",
+                          "itens": [None, True, {"codigoExtra": "SYNTHETIC-PRIVATE-WORKER-RETURN"}]}
+    frame["diagnostico"] = {"mensagem": "SYNTHETIC-PRIVATE-WORKER-RETURN"}
 if mode == "recovery_unproven":
     frame.update(sucesso=False, estado="CONSULTADO", cStat=217)
     for name in ("xmlBase64", "protocolo", "recibo"):
@@ -114,7 +119,7 @@ if mode == "wrong_marker_id":
     marker["id"] = "other"
 if mode == "extra_marker":
     marker["extra"] = 1
-if mode == "marker" or mutating and mode not in {"no_marker", "late_marker", "native_error"}:
+if mode == "marker" or mutating and mode not in {"no_marker", "late_marker", "native_error", "original_error"}:
     print(json.dumps(marker), flush=True)
 if mode == "duplicate_marker":
     print(json.dumps(marker), flush=True)
@@ -139,7 +144,12 @@ if mode == "duplicate":
     sys.stdout.buffer.write(encoded + b"\n")
 if mode == "trailing":
     sys.stdout.write("TRAILING")
+if mode == "original_invalid_after":
+    sys.stdout.write("invalid JSON after valid terminal frame\n")
+if mode == "original_timeout":
+    sys.stdout.flush()
+    time.sleep(30)
 if mode == "late_marker":
     print(json.dumps(marker), flush=True)
-if mode == "nonzero":
+if mode in {"nonzero", "original_nonzero"}:
     raise SystemExit(7)

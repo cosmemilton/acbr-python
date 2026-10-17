@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='utf-8'?>
+<procEventoNFe xmlns="http://www.portalfiscal.inf.br/nfe" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" versao="1.00"><evento versao="1.00"><infEvento Id="ID1101110000000000000000000000000000000000000000000001"><cOrgao>26</cOrgao><tpAmb>2</tpAmb><CNPJ>00000000000000</CNPJ><chNFe>00000000000000000000000000000000000000000000</chNFe><dhEvento>2020-01-01T00:00:00-03:00</dhEvento><tpEvento>110111</tpEvento><nSeqEvento>1</nSeqEvento><verEvento>1.00</verEvento><detEvento versao="1.00"><descEvento>Cancelamento</descEvento><nProt>000000000000000</nProt><xJust>TESTE DE HOMOLOGACAO DO CANCELAMENTO DA NOTA 20</xJust></detEvento></infEvento><ds:Signature><ds:SignedInfo><ds:CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315" /><ds:SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1" /><ds:Reference URI="#ID1101110000000000000000000000000000000000000000000001"><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><ds:Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315" /></ds:Transforms><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" /><ds:DigestValue>AAAAAAAAAAAAAAAAAAAAAAAAAAA=</ds:DigestValue></ds:Reference></ds:SignedInfo><ds:SignatureValue>AA==</ds:SignatureValue><ds:KeyInfo><ds:X509Data><ds:X509Certificate>AA==</ds:X509Certificate></ds:X509Data></ds:KeyInfo></ds:Signature></evento><retEvento versao="1.00"><infEvento>
+<tpAmb>2</tpAmb>
+<verAplic>ACBR-SYNTHETIC</verAplic>
+<cOrgao>26</cOrgao>
+<cStat>135</cStat>
+<xMotivo>Evento sintetico registrado e vinculado a NF-e</xMotivo>
+<chNFe>00000000000000000000000000000000000000000000</chNFe>
+<tpEvento>110111</tpEvento>
+<xEvento>Cancelamento registrado</xEvento>
+<nSeqEvento>1</nSeqEvento>
+<dhRegEvento>2020-01-01T00:00:00-03:00</dhRegEvento>
+<nProt>000000000000000</nProt>
+</infEvento></retEvento></procEventoNFe>

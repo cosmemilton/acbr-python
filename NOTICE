@@ -1,4 +1,4 @@
-ACBr Python 0.1.0a1
+ACBr Python 0.1.0a3
 https://github.com/cosmemilton/acbr-python
 Copyright 2026 Cosmemilton e colaboradores.
 
@@ -25,8 +25,14 @@ O wheel e o sdist Python não incluem executáveis nem bibliotecas nativas.
 A instalação explícita do runtime usa os arquivos originais da distribuição
 cosmemilton-acbr-node 0.2.0, sem reempacotar os binários, e deve preservar
 runtime/licenses e runtime/sources, junto ao inventário e aos demais arquivos.
-As fontes e licenças correspondentes são fornecidas pelo arquivo de origem
-fixado pelo instalador. A redistribuição de uma instalação nativa deve
-preservar esses materiais e cumprir as licenças de cada componente.
+O instalador preserva os materiais fornecidos no arquivo de origem fixado.
+Na inspeção local do runtime Linux 0.2.0, os avisos de libssl, libcrypto
+e legacy.so declaram Apache-2.0 e remetem ao texto externo em
+/usr/share/common-licenses/Apache-2.0; não foi localizada cópia integral
+equivalente no tgz nem em suas fontes internas. A completude das licenças
+dessa distribuição nativa não está atestada por este cliente Python.
+Uma redistribuição nativa corrigida deve preservar os avisos, incluir
+o texto integral aplicável e usar nova versão, manifesto e hashes,
+sem substituir o arquivo 0.2.0 já publicado.
 
 Nenhuma afiliação ou certificação oficial pelo Projeto ACBr é declarada.
