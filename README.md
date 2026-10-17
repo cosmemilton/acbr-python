@@ -5,8 +5,9 @@ em Free Pascal com ACBr e troca mensagens JSON pelos pipes do processo.
 Independente de Django, Flask ou outro framework, é instalado com pip e
 importa como `acbr`, sem dependências Python de execução.
 
-**Versão publicada no PyPI: 0.1.0a3 (alpha). Este checkout: 0.1.0a4.dev0,
-em desenvolvimento e ainda não publicado. Sem homologação fiscal.**
+Versão alpha 0.1.0a4
+
+Sem homologação fiscal.
 
 A camada Python reaproveita o contrato de tipos e o motor ACBr, sem
 reimplementar cálculos, assinatura ou regras fiscais. A API pública oferece
@@ -40,19 +41,20 @@ python -m venv .venv
 ```
 
 Ative o ambiente (`.venv\Scripts\Activate.ps1` no PowerShell ou
-`source .venv/bin/activate` no bash). Para instalar a versão publicada no PyPI:
+`source .venv/bin/activate` no bash). Após a disponibilização desta versão no PyPI:
 
 ```console
-python -m pip install acbr-python==0.1.0a3
-python -m acbr ajuda Ide.tpNF
+python -m pip install acbr-python==0.1.0a4
+python -m acbr --version
+python -m acbr describe Ide.tpNF
 python -m acbr ajuda TTipoNFe
 ```
 
-Os dois comandos `ajuda` retornam JSON e já estão disponíveis na 0.1.0a3.
-Para usar este checkout em desenvolvimento, instale a cópia do repositório
-com `python -m pip install .`. A 0.1.0a4.dev0 acrescenta `describe` em texto,
-`describe --json`, `--version` e a API Python `describe_type`; essas novidades
-ainda não estão na versão publicada.
+Os comandos `ajuda` retornam JSON e já existem na 0.1.0a3. A 0.1.0a4
+acrescenta `describe` em texto, `describe --json`, `--version` e a API Python
+`describe_type`. Para testar esta cópia antes de sua publicação, instale o
+repositório com `python -m pip install .`. A instalação da 0.1.0a3 não fornece
+os novos comandos.
 
 Esses comandos de ajuda são offline e não exigem runtime. Para as operações
 nativas, a instalação é uma etapa explícita, separada de `pip install`:
@@ -105,8 +107,8 @@ documentos privados ou tráfego fiscal.
 ## Modelos, campos e tipos
 
 O contrato compartilhado fornece modelos gerados e ajuda de campos/tipos.
-Na versão publicada 0.1.0a3, use `python -m acbr ajuda TARGET` para JSON ou
-`acbr.describe_field()` em Python. No checkout 0.1.0a4.dev0:
+Na versão 0.1.0a3, use `python -m acbr ajuda TARGET` para JSON ou
+`acbr.describe_field()` em Python. A partir da 0.1.0a4:
 
 ```console
 python -m acbr --version

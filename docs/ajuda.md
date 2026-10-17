@@ -4,9 +4,9 @@ A ajuda consulta o contrato ACBr incluído no pacote Python. Não exige
 runtime instalado, A1 ou acesso à rede e não executa o motor nativo.
 Os exemplos abaixo apenas consultam metadados; não iniciam operações fiscais.
 
-## Versão publicada e checkout
+## Comandos por versão
 
-A versão publicada no PyPI é **0.1.0a3**. Ela já oferece JSON pela CLI:
+A versão **0.1.0a3** já oferece JSON pela CLI:
 
 ```console
 python -m acbr ajuda Ide.tpNF
@@ -14,12 +14,12 @@ python -m acbr ajuda TTipoNFe
 ```
 
 Em Python, `from acbr import describe_field` também funciona nessa versão.
-O checkout **0.1.0a4.dev0**, ainda não publicado, acrescenta `describe`,
-`--version` e a função `describe_type`. Para experimentar essas novidades,
-instale sua cópia do repositório com `python -m pip install .` em um ambiente
-virtual. Instalar `acbr-python==0.1.0a3` do PyPI não fornece esses acréscimos.
+A versão **0.1.0a4** acrescenta `describe`, `--version` e a função
+`describe_type`. Para testar o código antes de sua publicação, instale sua
+cópia do repositório com `python -m pip install .` em um ambiente virtual.
+Instalar `acbr-python==0.1.0a3` do PyPI não fornece esses acréscimos.
 
-## Texto e JSON no checkout 0.1.0a4.dev0
+## Texto e JSON na 0.1.0a4
 
 ```console
 python -m acbr --version
@@ -30,7 +30,7 @@ python -m acbr describe TTipoNFe
 python -m acbr describe TTipoNFe --json
 ```
 
-`--version` mostra `acbr-python 0.1.0a4.dev0` para este checkout. A descrição
+`--version` mostra `acbr-python 0.1.0a4` nesta versão. A descrição
 do campo `Ide.tpNF` em texto é:
 
 ```text
@@ -48,7 +48,7 @@ valores para códigos fiscais nem determina qual usar em uma operação.
 
 `describe TARGET --json` retorna o objeto de `describe_field(TARGET)`.
 `ajuda TARGET` conserva a saída JSON compatível. Ambos usam os mesmos
-metadados e a mesma formatação no checkout; `sdkVersion` informa a versão
+metadados e a mesma formatação na 0.1.0a4; `sdkVersion` informa a versão
 do código Python que realizou a consulta. Para redirecionar o JSON:
 
 ```console
@@ -101,10 +101,10 @@ print(get_args(TTipoNFe))         # ('tnEntrada', 'tnSaida')
 para consultar seus valores. A entrada do documento usa as strings do
 contrato. A ajuda e `Documento` não inserem defaults nos campos omitidos.
 
-A API nova do checkout oferece uma consulta estrita por nome de tipo:
+A API da 0.1.0a4 oferece uma consulta estrita por nome de tipo:
 
 ```python
-from acbr import AcbrError, describe_type  # 0.1.0a4.dev0, ainda não publicada
+from acbr import AcbrError, describe_type  # Requer 0.1.0a4 ou posterior.
 
 tipo = describe_type("TTipoNFe")
 assert tipo["values"] == ["tnEntrada", "tnSaida"]
@@ -128,7 +128,7 @@ Essas informações não validam um documento em schema ou em serviço fiscal.
 
 ## Canais e códigos de saída da CLI
 
-| Consulta no checkout | Sucesso | Erro de consulta |
+| Consulta na 0.1.0a4 | Sucesso | Erro de consulta |
 | --- | --- | --- |
 | `describe TARGET` | Texto em stdout, saída 0 | Mensagem e ação em stderr, saída 1; stdout vazio |
 | `describe TARGET --json` | Objeto JSON em stdout, saída 0 | Diagnóstico JSON em stdout, saída 1 |

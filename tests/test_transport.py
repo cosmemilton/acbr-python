@@ -145,7 +145,8 @@ class TransportTests(unittest.TestCase):
         for mode, code in (("original_nonzero", "FALHA_MOTOR"), ("original_invalid_after", "RESPOSTA_INVALIDA"),
                            ("original_timeout", "TIMEOUT_MOTOR")):
             with self.subTest(mode=mode), self.assertRaises(AcbrError) as caught:
-                self.run_worker(mode, request=self.request("transmitir"), transport=ProcessTransport(timeout=.5))
+                # Preserve the terminal frame without requiring Python startup in 500 ms.
+                self.run_worker(mode, request=self.request("transmitir"), transport=ProcessTransport(timeout=5))
             error = caught.exception
             self.assertEqual(code, error.codigo)
             self.assertTrue(error.resultado_desconhecido)
@@ -449,7 +450,9 @@ class TransportTests(unittest.TestCase):
     def test_pipe_failure_and_unconfirmed_teardown_are_uncertain_without_marker(self):
         for bad_stdin in (False, True):
             process = MockProcess(refuse_kill=not bad_stdin, bad_stdin=bad_stdin)
-            transport = ProcessTransport(timeout=.06)
+            # Only the stalled-process case tests the short deadline; a broken
+            # writer must have time to report its distinct pipe error.
+            transport = ProcessTransport(timeout=5 if bad_stdin else .06)
             try:
                 with self.subTest(bad_stdin=bad_stdin), patch("acbr.transport.subprocess.Popen", return_value=process) as spawn:
                     with self.assertRaises(AcbrError) as caught:
