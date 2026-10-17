@@ -31,13 +31,30 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          import json, os, tomllib, urllib.request
+          import ast, json, os, re, tomllib, urllib.request
           from pathlib import Path
           config = tomllib.loads(Path('pyproject.toml').read_text('utf-8'))['project']
           version = config['version']
           assert config['name'] == 'acbr-python'
+          # Final alpha only: no dev, beta, rc, post, local or noncanonical spelling.
+          number = r'(?:0|[1-9][0-9]*)'
+          assert (type(version) is str
+                  and re.fullmatch(number + r'\.' + number + r'\.' + number + 'a' + number, version)), 'Versao alpha final canonica obrigatoria'
+          # Read the version literal without importing or executing package code.
+          nodes = ast.parse(Path('src/acbr/_version.py').read_text('utf-8')).body
+          if (nodes and isinstance(nodes[0], ast.Expr) and isinstance(nodes[0].value, ast.Constant)
+                  and type(nodes[0].value.value) is str):
+              nodes = nodes[1:]
+          assert (len(nodes) == 1 and isinstance(nodes[0], ast.Assign) and len(nodes[0].targets) == 1
+                  and isinstance(nodes[0].targets[0], ast.Name) and nodes[0].targets[0].id == '__version__'
+                  and isinstance(nodes[0].value, ast.Constant) and type(nodes[0].value.value) is str
+                  and nodes[0].value.value == version), 'Versao do modulo Python diverge do pyproject'
+          notice = Path('NOTICE').read_text('utf-8').splitlines()
+          assert notice and notice[0] == 'ACBr Python ' + version, 'Versao do NOTICE diverge do pyproject'
+          # A candidate marker is not a claim that this version is already on PyPI.
+          marker = 'Versão alpha ' + version
+          assert Path('README.md').read_text('utf-8').splitlines().count(marker) == 1, 'Marcador exato de release no README ausente ou ambiguo'
           assert os.environ['GITHUB_REF'] == 'refs/tags/v' + version
-          assert ('alpha ' + version) in Path('README.md').read_text('utf-8')
           repository = os.environ['GITHUB_REPOSITORY']
           assert repository == 'cosmemilton/acbr-python'
           api = 'https://api.github.com/repos/' + repository

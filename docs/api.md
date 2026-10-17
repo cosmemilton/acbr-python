@@ -1,19 +1,19 @@
-# API pública - checkout 0.1.0a4.dev0
+# API pública - 0.1.0a4
 
 O pacote importa como `acbr` e funciona sem Django, Flask, Node.js ou PHP.
 Esta referência descreve a API Python sobre o worker ACBr 0.2.0 original.
 Sua distribuição nativa fixada é 0.2.1, com os mesmos executáveis e contrato.
 Não há homologação fiscal nem teste de rede contra a SEFAZ nesta entrega.
 
-A versão publicada no PyPI é **0.1.0a3**. Este documento inclui as melhorias
-de ajuda da **0.1.0a4.dev0**, ainda não publicada. A API `describe_field` e a
-CLI `ajuda TARGET` em JSON já existem na 0.1.0a3; `describe_type`, a CLI
-`describe` e `--version` são novidades deste checkout.
+Este documento descreve a **0.1.0a4**. A API `describe_field` e a CLI
+`ajuda TARGET` em JSON já existem na 0.1.0a3; `describe_type`, a CLI
+`describe` e `--version` foram acrescentados na 0.1.0a4. Confirme a versão
+instalada antes de usar os comandos novos.
 
 ## Consulta offline do contrato
 
 ```python
-from acbr import describe_field, describe_type  # describe_type: checkout 0.1.0a4.dev0
+from acbr import describe_field, describe_type  # describe_type: a partir da 0.1.0a4
 
 campo = describe_field("Ide.tpNF")
 tipo = describe_type("TTipoNFe")
@@ -28,7 +28,7 @@ Coleções usam `[]` ou índice numérico; `Det[0].Prod.vProd` é normalizado pa
 `TNFe.Det[].Prod.vProd` no resultado. Um nome curto só é aceito se não houver
 ambiguidade. A consulta distingue maiúsculas e minúsculas.
 
-`describe_type(name: str) -> dict`, nova neste checkout, aceita somente nomes
+`describe_type(name: str) -> dict`, nova na 0.1.0a4, aceita somente nomes
 exatos de tipos de objeto, lista ou enum do contrato, como `TProd`,
 `TDetCollection` ou `TTipoNFe`. Caminhos de campos, nomes com espaços, outra
 capitalização e aliases Python com sufixo `Output` são rejeitados com
@@ -48,7 +48,7 @@ de `Ide.tpNF`; a ajuda não insere esse valor em um `Documento` nem o converte
 para códigos ou regras fiscais.
 
 Essas funções e os comandos de ajuda não exigem instalação do runtime,
-certificado, processo nativo ou rede. Na CLI do checkout, `describe TARGET`
+certificado, processo nativo ou rede. Na CLI da 0.1.0a4, `describe TARGET`
 usa texto e `describe TARGET --json` usa o mesmo objeto de
 `describe_field(TARGET)`; `ajuda TARGET` preserva a interface JSON existente.
 Erros de consulta em texto saem em stderr com código 1; em JSON e `ajuda`,

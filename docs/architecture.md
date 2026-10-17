@@ -40,10 +40,9 @@ para fornecer sua API nem transporta dados ou segredos de um consumidor.
 
 ## Versões e ajuda offline
 
-A versão publicada no PyPI é 0.1.0a3. Este checkout 0.1.0a4.dev0 ainda não
-foi publicado e acrescenta ajuda em texto com `describe TARGET`, saída JSON
+A versão 0.1.0a4 acrescenta ajuda em texto com `describe TARGET`, saída JSON
 com `describe TARGET --json`, `--version` e a função `describe_type`.
-`ajuda TARGET` mantém o JSON da interface publicada, baseado em
+`ajuda TARGET` mantém o JSON da interface 0.1.0a3, baseado em
 `describe_field`. O campo `sdkVersion` reflete a versão do código consultado.
 Essa mudança não altera o pin nativo 0.2.1 nem o contrato ACBr autenticado.
 
