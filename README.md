@@ -236,6 +236,14 @@ Não há publicação automática nem credenciais de publicação na CI.
 
 Veja [arquitetura e escopo](docs/architecture.md) para as decisões do SDK.
 
+## Apoie o projeto
+
+Seu apoio ajuda a manter este projeto. Esta biblioteca facilita a integração
+com o ACBr em Python. Se o projeto ajuda você ou sua empresa, considere apoiar
+sua manutenção pelo [GitHub Sponsors](https://github.com/sponsors/cosmemilton).
+As contribuições ajudam a custear a infraestrutura, manter a documentação
+e dedicar tempo a correções, testes e melhorias. Qualquer valor é bem-vindo.
+
 ## Licenças e fontes
 
 Cliente e contrato: LGPL-2.1-or-later; consulte [LICENSE](LICENSE) e
